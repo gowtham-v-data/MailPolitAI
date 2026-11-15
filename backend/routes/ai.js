@@ -6,6 +6,49 @@ const router = express.Router();
 
 router.use(authenticate);
 
+// GET /api/ai/status
+router.get('/status', async (req, res) => {
+  try {
+    const { isGeminiConfigured } = require('../services/geminiService');
+    res.json({
+      success: true,
+      provider: isGeminiConfigured() ? 'Google Gemini API' : 'Built-in Neural Rule Engine',
+      isGeminiActive: isGeminiConfigured(),
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+      capabilities: [
+        'Automatic 4-tier Email Classification',
+        'Executive Thread Summarization',
+        'Tone-adaptive Reply Draft Generation',
+        'Conversational Email Assistant'
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/ai/config
+router.post('/config', async (req, res) => {
+  try {
+    const { apiKey, model } = req.body;
+    if (apiKey !== undefined) {
+      process.env.GEMINI_API_KEY = apiKey.trim();
+    }
+    if (model) {
+      process.env.GEMINI_MODEL = model;
+    }
+    const { isGeminiConfigured } = require('../services/geminiService');
+    res.json({
+      success: true,
+      message: 'AI configuration updated successfully',
+      isGeminiActive: isGeminiConfigured(),
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // POST /api/ai/classify/:emailId
 router.post('/classify/:emailId', async (req, res) => {
   try {

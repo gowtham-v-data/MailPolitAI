@@ -83,4 +83,10 @@ export const getMeetings = (params) => api.get('/meetings', { params });
 export const createMeeting = (data) => api.post('/meetings', data);
 export const updateMeeting = (id, data) => api.put(`/meetings/${id}`, data);
 
+// Third-Party Integrations
+export const getIntegrationsStatus = (clientId) => api.get('/accounts/integrations-status', { params: { clientId } });
+export const syncIntegrationProvider = (provider, clientId) => api.post('/accounts/sync-provider', { provider, clientId });
+export const getAIStatus = () => api.get('/ai/status');
+export const updateAIConfig = (data) => api.post('/ai/config', data);
+
 export default api;

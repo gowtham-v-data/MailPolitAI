@@ -287,6 +287,40 @@ function determineCategory(text, classificationType) {
 // ─── Main classifier ───────────────────────────────────────────────────────────
 
 async function classifyEmail(email) {
+  // 0. Check if Google Gemini API is configured
+  try {
+    const geminiService = require('./geminiService');
+    if (geminiService.isGeminiConfigured()) {
+      const gResult = await geminiService.classifyWithGemini(email);
+      if (gResult && gResult.classification) {
+        return {
+          classification: gResult.classification,
+          confidence: gResult.confidence || 0.95,
+          reason: gResult.reason || 'Classified by Google Gemini API',
+          summary: gResult.summary || email.subject,
+          actionRequired: gResult.actionRequired !== undefined ? gResult.actionRequired : (gResult.classification !== 'NO_REPLY_NEEDED'),
+          suggestedAction: gResult.suggestedAction || 'Review conversation',
+          priority: gResult.priority || 'MEDIUM',
+          category: gResult.category || 'general',
+          extractedInfo: {
+            actionItems: gResult.actionItems || [],
+            deadlines: (gResult.deadlines || []).map(d => ({ description: d.description, date: new Date(d.date) })),
+            meetingInfo: gResult.meetingInfo ? {
+              title: gResult.meetingInfo.title,
+              date: gResult.meetingInfo.date ? new Date(gResult.meetingInfo.date) : null,
+              time: gResult.meetingInfo.time,
+              location: gResult.meetingInfo.location,
+              participants: []
+            } : null
+          },
+          provider: 'google-gemini'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Gemini classification fallback to rule engine:', err.message);
+  }
+
   const allText = gatherText(email);
 
   // Score each classification type
@@ -499,6 +533,17 @@ function analyzeSentiment(text) {
 // ─── Draft reply generator ──────────────────────────────────────────────────────
 
 async function generateDraftReply(email, tone = 'professional') {
+  // Check Gemini first
+  try {
+    const geminiService = require('./geminiService');
+    if (geminiService.isGeminiConfigured()) {
+      const gDraft = await geminiService.draftReplyWithGemini(email, tone);
+      if (gDraft) return gDraft;
+    }
+  } catch (err) {
+    console.warn('Gemini draft reply fallback to rule engine:', err.message);
+  }
+
   const senderName = email.sender?.name || 'there';
   const firstName = senderName.split(' ')[0];
   const subject = email.subject || '';
@@ -612,6 +657,24 @@ function generateGenericReply(tone, classificationType) {
 // ─── AI chat assistant ──────────────────────────────────────────────────────────
 
 async function chatWithAI(message, context = {}) {
+  // Check Gemini first
+  try {
+    const geminiService = require('./geminiService');
+    if (geminiService.isGeminiConfigured()) {
+      const gChat = await geminiService.chatWithGemini(message, context);
+      if (gChat) {
+        return {
+          response: gChat,
+          type: 'gemini_response',
+          generatedBy: 'Google Gemini AI',
+          suggestions: ['Summarize my priority emails', 'Draft a reply for the top email', 'Check upcoming meetings']
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Gemini chat fallback to rule engine:', err.message);
+  }
+
   const lowerMessage = message.toLowerCase();
 
   // Pattern matching for common queries
