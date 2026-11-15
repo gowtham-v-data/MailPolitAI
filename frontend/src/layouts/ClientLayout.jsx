@@ -1,36 +1,66 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { Plane, LogOut } from 'lucide-react';
+import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Plane, LogOut, ArrowLeft, Bot } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function ClientLayout() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
   const handleLogout = () => {
-    localStorage.removeItem('mailpilot_token');
-    navigate('/login');
+    logout();
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Top Banner / Switcher */}
+      <div className="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span className="font-medium text-white">Executive Client View</span>
+            <span className="text-slate-400 hidden sm:inline">— James Richardson (TechVision Inc)</span>
+          </div>
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 text-indigo-300 hover:text-white font-medium transition-colors"
+          >
+            <Bot className="w-3.5 h-3.5" />
+            Switch to Assistant Dashboard
+          </Link>
+        </div>
+      </div>
+
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Plane className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-xs">
+              <Plane className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-semibold text-slate-900">MailPilot AI</h1>
-              <p className="text-xs text-slate-500">Your Attention Required</p>
+              <h1 className="font-bold text-slate-900 text-base leading-tight">MailPilot AI</h1>
+              <p className="text-xs text-slate-500">Executive Decision Portal</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
         <Outlet />
       </main>
+
+      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
+        MailPilot AI · Minimalist Executive Client Interface
+      </footer>
     </div>
   );
 }

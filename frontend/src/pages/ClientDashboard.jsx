@@ -1,99 +1,171 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
-import ClassificationBadge from '../components/ClassificationBadge';
 import PriorityBadge from '../components/PriorityBadge';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/Toast';
 import { stringToColor, getInitials, formatDate } from '../utils/helpers';
-import { Mail, CheckCircle, ArrowRight, UserCheck, HandMetal, Inbox } from 'lucide-react';
+import { Mail, CheckCircle, ArrowRight, UserCheck, Inbox, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const toast = useToast();
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [handledCount, setHandledCount] = useState(0);
   const [delegatedCount, setDelegatedCount] = useState(0);
 
-  useEffect(() => {
-    fetchEmails();
-  }, []);
-
-  const fetchEmails = async () => {
+  const fetchEmails = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Fetch CLIENT_TO_REPLY emails (works without auth for prototype by trying)
-      const token = localStorage.getItem('mailpilot_token');
+      let token = localStorage.getItem('mailpilot_token');
+      // If no token or token is invalid, ensure we have an active session for the client view
       if (!token) {
-        // Auto-login as demo client for prototype
         try {
           const loginRes = await api.login({ email: 'james@techvision.com', password: 'password123' });
-          localStorage.setItem('mailpilot_token', loginRes.data.token);
-        } catch {
-          // Use demo assistant login as fallback
-          const loginRes = await api.login({ email: 'sarah@mailpilot.ai', password: 'password123' });
-          localStorage.setItem('mailpilot_token', loginRes.data.token);
+          if (loginRes.data?.token) {
+            token = loginRes.data.token;
+            localStorage.setItem('mailpilot_token', token);
+          }
+        } catch (loginErr) {
+          console.warn('Auto-login as client failed, attempting assistant fallback:', loginErr);
+          const fallbackRes = await api.login({ email: 'sarah@mailpilot.ai', password: 'password123' });
+          if (fallbackRes.data?.token) {
+            token = fallbackRes.data.token;
+            localStorage.setItem('mailpilot_token', token);
+          }
         }
       }
-      const res = await api.getEmails({ classification: 'CLIENT_TO_REPLY', status: 'active' });
-      setEmails(res.data.emails || []);
+
+      // Fetch emails classified as CLIENT_TO_REPLY
+      const res = await api.getEmails({ classification: 'CLIENT_TO_REPLY', status: 'active', limit: 50 });
+      setEmails(res.data?.emails || []);
     } catch (err) {
-      console.error('Failed to fetch:', err);
+      console.error('Failed to fetch client emails:', err);
+      // If unauthorized, attempt one re-login and retry
+      if (err.response?.status === 401) {
+        try {
+          localStorage.removeItem('mailpilot_token');
+          const loginRes = await api.login({ email: 'james@techvision.com', password: 'password123' });
+          localStorage.setItem('mailpilot_token', loginRes.data.token);
+          const retryRes = await api.getEmails({ classification: 'CLIENT_TO_REPLY', status: 'active', limit: 50 });
+          setEmails(retryRes.data?.emails || []);
+          setLoading(false);
+          return;
+        } catch (retryErr) {
+          console.error('Retry failed:', retryErr);
+        }
+      }
+      setError('Could not load emails. Please check your connection or sign in again.');
       setEmails([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchEmails();
+  }, [fetchEmails]);
 
   const handleMarkHandled = async (emailId) => {
     try {
       await api.completeEmail(emailId);
-      setEmails(prev => prev.filter(e => e._id !== emailId));
-      setHandledCount(prev => prev + 1);
-      toast.success('Marked as handled');
+      setEmails((prev) => prev.filter((e) => e._id !== emailId));
+      setHandledCount((prev) => prev + 1);
+      toast.success('Marked as handled ✓');
     } catch {
-      toast.error('Action failed');
+      toast.error('Action failed. Please try again.');
     }
   };
 
   const handleDelegate = async (emailId) => {
     try {
       await api.delegateEmail(emailId);
-      setEmails(prev => prev.filter(e => e._id !== emailId));
-      setDelegatedCount(prev => prev + 1);
-      toast.success('Delegated to assistant');
+      setEmails((prev) => prev.filter((e) => e._id !== emailId));
+      setDelegatedCount((prev) => prev + 1);
+      toast.success('Delegated to your assistant Sarah ✓');
     } catch {
-      toast.error('Delegation failed');
+      toast.error('Delegation failed. Please try again.');
     }
   };
 
-  if (loading) return <div className="py-20"><LoadingSpinner /></div>;
+  if (loading) {
+    return (
+      <div className="py-24 text-center">
+        <LoadingSpinner />
+        <p className="text-xs text-slate-400 mt-3 font-medium">Loading your priority items...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto my-12 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-semibold text-slate-900 mb-1">Failed to load conversations</h3>
+        <p className="text-xs text-slate-500 mb-4">{error}</p>
+        <button
+          onClick={fetchEmails}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 text-center">
-          <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <Mail className="w-5 h-5 text-amber-600" />
+    <div className="space-y-6">
+      {/* Intro Header */}
+      <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold mb-2 border border-amber-100">
+              <Sparkles className="w-3 h-3 text-amber-500" /> AI Filtered
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Your Action Required</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Emails below have been automatically identified by AI as requiring your personal decision or input. All other routine emails are handled directly by your assistant.
+            </p>
+          </div>
+          <button
+            onClick={fetchEmails}
+            className="self-start sm:self-center flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Counter Bar */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
+          <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <Mail className="w-4 h-4 text-amber-600" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{emails.length}</p>
-          <p className="text-xs text-slate-500">Needs Your Response</p>
+          <p className="text-xs text-slate-500 font-medium">Requiring Attention</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 text-center">
-          <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <CheckCircle className="w-5 h-5 text-emerald-600" />
+        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
+          <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{handledCount}</p>
-          <p className="text-xs text-slate-500">Handled Today</p>
+          <p className="text-xs text-slate-500 font-medium">Handled Today</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 text-center">
-          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <UserCheck className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
+          <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <UserCheck className="w-4 h-4 text-indigo-600" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{delegatedCount}</p>
-          <p className="text-xs text-slate-500">Delegated</p>
+          <p className="text-xs text-slate-500 font-medium">Delegated to Assistant</p>
         </div>
       </div>
 
@@ -102,61 +174,96 @@ export default function ClientDashboard() {
         <EmptyState
           icon={Inbox}
           title="You're all caught up! ✓"
-          description="No emails require your personal attention right now. Your assistant is handling everything."
+          description="No emails require your personal attention right now. Your assistant is managing all routine inquiries."
         />
       ) : (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900">Emails Requiring Your Attention</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+              Pending Items ({emails.length})
+            </h2>
+            <span className="text-xs text-slate-400">
+              Sorted by urgency
+            </span>
+          </div>
+
           {emails.map((email) => {
-            const senderName = email.sender?.name || email.sender?.email || 'Unknown';
+            const senderName = email.sender?.name || email.sender?.email || 'Unknown Sender';
             const color = stringToColor(senderName);
             return (
-              <div key={email._id} className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
+              <div
+                key={email._id}
+                className="bg-white rounded-xl shadow-xs border border-slate-200/90 p-5 hover:border-slate-300 hover:shadow-md transition-all"
+              >
                 <div className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0" style={{ backgroundColor: color }}>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0 shadow-xs"
+                    style={{ backgroundColor: color }}
+                  >
                     {getInitials(senderName)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3 mb-1">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                       <div>
-                        <p className="text-sm font-medium text-slate-600">{senderName}</p>
-                        <h3 className="text-base font-semibold text-slate-900">{email.subject}</h3>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          {senderName}
+                        </span>
+                        <h3 className="text-base font-bold text-slate-900 hover:text-indigo-600 cursor-pointer transition-colors"
+                            onClick={() => navigate(`/client/email/${email._id}`)}>
+                          {email.subject}
+                        </h3>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 self-start flex-shrink-0">
                         <PriorityBadge priority={email.classification?.priority} />
-                        <span className="text-xs text-slate-400">{formatDate(email.createdAt)}</span>
+                        <span className="text-xs text-slate-400 font-medium">
+                          {formatDate(email.createdAt)}
+                        </span>
                       </div>
                     </div>
 
-                    {/* AI Summary */}
-                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">
-                      {email.classification?.summary || email.preview || 'No summary available'}
-                    </p>
+                    {/* AI Executive Summary */}
+                    <div className="bg-slate-50 rounded-lg p-3 my-2.5 border border-slate-100">
+                      <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        AI Summary
+                      </p>
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {email.classification?.summary || email.preview || 'No summary available'}
+                      </p>
+                    </div>
 
                     {/* Why attention needed */}
-                    <p className="text-sm text-slate-400 italic mt-1.5">
-                      {email.classification?.reason || 'This email requires your personal attention'}
-                    </p>
+                    <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50/70 border border-amber-200/60 rounded-lg p-2.5 my-2">
+                      <span className="font-semibold flex-shrink-0">Why you need to respond:</span>
+                      <span className="italic">{email.classification?.reason || 'This conversation requires executive authorization.'}</span>
+                    </div>
 
                     {/* Suggested Action */}
                     {email.classification?.suggestedAction && (
-                      <div className="mt-2 px-3 py-1.5 bg-amber-50 border border-amber-100 rounded-lg inline-block">
-                        <p className="text-xs text-amber-700 font-medium">💡 {email.classification.suggestedAction}</p>
+                      <div className="text-xs text-slate-600 font-medium my-2">
+                        <span className="text-indigo-600 font-semibold">Suggested Action: </span>
+                        {email.classification.suggestedAction}
                       </div>
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <button onClick={() => navigate(`/client/email/${email._id}`)}
-                        className="px-4 py-1.5 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2.5 mt-4 pt-3 border-t border-slate-100">
+                      <button
+                        onClick={() => navigate(`/client/email/${email._id}`)}
+                        className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                      >
                         Open Conversation <ArrowRight className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => handleMarkHandled(email._id)}
-                        className="px-4 py-1.5 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors inline-flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleMarkHandled(email._id)}
+                        className="px-3.5 py-1.5 text-xs font-semibold border border-emerald-300 text-emerald-700 bg-emerald-50/50 rounded-lg hover:bg-emerald-100 transition-colors inline-flex items-center gap-1.5"
+                      >
                         <CheckCircle className="w-3.5 h-3.5" /> Mark Handled
                       </button>
-                      <button onClick={() => handleDelegate(email._id)}
-                        className="px-4 py-1.5 text-sm border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors inline-flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleDelegate(email._id)}
+                        className="px-3.5 py-1.5 text-xs font-semibold border border-indigo-200 text-indigo-700 bg-indigo-50/50 rounded-lg hover:bg-indigo-100 transition-colors inline-flex items-center gap-1.5"
+                      >
                         <UserCheck className="w-3.5 h-3.5" /> Delegate to Assistant
                       </button>
                     </div>

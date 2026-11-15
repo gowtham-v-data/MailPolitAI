@@ -98,8 +98,16 @@ export default function EmailDetail({ clientView = false }) {
     try {
       await api.delegateEmail(id);
       toast.success('Delegated to assistant');
-      navigate(-1);
+      navigate(clientView ? '/client' : -1);
     } catch { toast.error('Delegation failed'); }
+  };
+
+  const handleBack = () => {
+    if (clientView) {
+      navigate('/client');
+    } else {
+      navigate(-1);
+    }
   };
 
   if (loading) return <div className="p-6"><LoadingSpinner /></div>;
@@ -112,8 +120,8 @@ export default function EmailDetail({ clientView = false }) {
   return (
     <div className="p-4 lg:p-6">
       {/* Back button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Back
+      <button onClick={handleBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors">
+        <ArrowLeft className="w-4 h-4" /> {clientView ? 'Back to Executive View' : 'Back'}
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

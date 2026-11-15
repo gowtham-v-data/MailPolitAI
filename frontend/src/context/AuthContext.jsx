@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('mailpilot_token', newToken);
       setToken(newToken);
       setUser(newUser);
-      return { success: true };
+      return { success: true, user: newUser };
     } catch (err) {
       return {
         success: false,
@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('mailpilot_token', newToken);
       setToken(newToken);
       setUser(newUser);
-      return { success: true };
+      return { success: true, user: newUser };
     } catch (err) {
       return {
         success: false,

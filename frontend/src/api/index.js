@@ -25,7 +25,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('mailpilot_token');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      if (
+        window.location.pathname !== '/login' &&
+        window.location.pathname !== '/register' &&
+        !window.location.pathname.startsWith('/client')
+      ) {
         window.location.href = '/login';
       }
     }
