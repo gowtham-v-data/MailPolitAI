@@ -44,22 +44,20 @@ export function AppProvider({ children }) {
       const response = await api.getClients();
       const clientList = response.data.clients || response.data || [];
       setClients(clientList);
-      if (clientList.length > 0 && !selectedClient) {
-        setSelectedClient(clientList[0]);
+      if (clientList.length > 0) {
+        setSelectedClient((prev) => prev || clientList[0]);
       }
     } catch (err) {
       // Use mock data if API not available
       const mockClients = [
-        { _id: '1', name: 'Sarah Johnson', email: 'sarah@company.com', company: 'TechCorp Inc.', status: 'active' },
-        { _id: '2', name: 'Mike Chen', email: 'mike@startup.io', company: 'StartupIO', status: 'active' },
-        { _id: '3', name: 'Emily Davis', email: 'emily@design.co', company: 'DesignCo', status: 'active' },
+        { _id: '1', name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', status: 'active' },
+        { _id: '2', name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', status: 'active' },
+        { _id: '3', name: 'Michael Torres', email: 'michael@atlasconsulting.com', company: 'Atlas Consulting', status: 'active' },
       ];
       setClients(mockClients);
-      if (!selectedClient) {
-        setSelectedClient(mockClients[0]);
-      }
+      setSelectedClient((prev) => prev || mockClients[0]);
     }
-  }, [selectedClient]);
+  }, []);
 
   // Fetch email counts
   useEffect(() => {

@@ -18,9 +18,11 @@ import Settings from './pages/Settings';
 import ClientDashboard from './pages/ClientDashboard';
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (user?.role === 'client') return <Navigate to="/client" replace />;
+  return children;
 }
 
 function AppRoutes() {

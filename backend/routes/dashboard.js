@@ -7,11 +7,15 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// GET /api/dashboard/stats/:clientId
-router.get('/stats/:clientId', async (req, res) => {
+// GET /api/dashboard/stats/:clientId?
+router.get('/stats/:clientId?', async (req, res) => {
   try {
     const { clientId } = req.params;
-    const base = { clientId, isArchived: false };
+    const mongoose = require('mongoose');
+    const base = { isArchived: false };
+    if (clientId && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId)) {
+      base.clientId = clientId;
+    }
 
     const [totalEmails, unreadEmails, importantEmails, assistantToReply, clientToReply, noReplyNeeded, needsReview, actionRequired, waitingForResponse, completedToday] = await Promise.all([
       Email.countDocuments(base),
@@ -33,7 +37,8 @@ router.get('/stats/:clientId', async (req, res) => {
       NEEDS_REVIEW: needsReview
     };
 
-    const recentActivity = await ActivityLog.find({ clientId }).sort({ createdAt: -1 }).limit(10);
+    const activityFilter = base.clientId ? { clientId: base.clientId } : {};
+    const recentActivity = await ActivityLog.find(activityFilter).sort({ createdAt: -1 }).limit(10);
 
     res.json({
       success: true,
@@ -47,10 +52,16 @@ router.get('/stats/:clientId', async (req, res) => {
   }
 });
 
-// GET /api/dashboard/recent/:clientId
-router.get('/recent/:clientId', async (req, res) => {
+// GET /api/dashboard/recent/:clientId?
+router.get('/recent/:clientId?', async (req, res) => {
   try {
-    const emails = await Email.find({ clientId: req.params.clientId, isArchived: false })
+    const { clientId } = req.params;
+    const mongoose = require('mongoose');
+    const filter = { isArchived: false };
+    if (clientId && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId)) {
+      filter.clientId = clientId;
+    }
+    const emails = await Email.find(filter)
       .sort({ createdAt: -1 })
       .limit(10);
     res.json({ success: true, emails });

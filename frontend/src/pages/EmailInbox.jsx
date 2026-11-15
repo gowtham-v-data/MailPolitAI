@@ -40,10 +40,14 @@ export default function EmailInbox() {
   const title = classification ? TITLES[classification] || classification : 'All Emails';
 
   const fetchEmails = useCallback(async () => {
-    if (!selectedClient?._id) return;
     setLoading(true);
     try {
-      const params = { clientId: selectedClient._id, page, limit, sort: sort === 'newest' ? 'newest' : sort === 'oldest' ? 'oldest' : 'priority' };
+      const params = {
+        page,
+        limit,
+        sort: sort === 'newest' ? 'newest' : sort === 'oldest' ? 'oldest' : 'priority',
+      };
+      if (selectedClient?._id) params.clientId = selectedClient._id;
       if (classification) params.classification = classification;
       else if (filters.classification) params.classification = filters.classification;
       if (filters.priority) params.priority = filters.priority;
@@ -53,13 +57,14 @@ export default function EmailInbox() {
       if (search) params.search = search;
 
       const res = await api.getEmails(params);
-      setEmails(res.data.emails || []);
-      setTotal(res.data.total || 0);
+      setEmails(res.data?.emails || []);
+      setTotal(res.data?.total || 0);
     } catch (err) {
       console.error('Failed to fetch emails:', err);
       setEmails([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedClient, page, sort, search, classification, filters]);
 
   useEffect(() => { fetchEmails(); }, [fetchEmails]);

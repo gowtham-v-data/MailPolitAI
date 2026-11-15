@@ -42,11 +42,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/emails/stats/:clientId
-router.get('/stats/:clientId', async (req, res) => {
+// GET /api/emails/stats/:clientId?
+router.get('/stats/:clientId?', async (req, res) => {
   try {
     const { clientId } = req.params;
-    const base = { clientId, isArchived: false };
+    const mongoose = require('mongoose');
+    const base = { isArchived: false };
+    if (clientId && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId)) {
+      base.clientId = clientId;
+    }
     const [total, unread, important, assistantToReply, clientToReply, noReplyNeeded, needsReview, actionRequired] = await Promise.all([
       Email.countDocuments(base),
       Email.countDocuments({ ...base, isUnread: true }),

@@ -25,22 +25,28 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (selectedClient?._id) fetchData();
+    fetchData();
   }, [selectedClient]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      const clientId = selectedClient?._id;
       const [statsRes, recentRes, meetingsRes] = await Promise.all([
-        api.getDashboardStats(selectedClient._id).catch(() => ({ data: {} })),
-        api.getRecentEmails(selectedClient._id).catch(() => ({ data: { emails: [] } })),
-        api.getMeetings({ clientId: selectedClient._id, status: 'upcoming' }).catch(() => ({ data: { meetings: [] } }))
+        clientId ? api.getDashboardStats(clientId).catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
+        clientId
+          ? api.getRecentEmails(clientId).catch(() => ({ data: { emails: [] } }))
+          : api.getEmails({ limit: 8 }).catch(() => ({ data: { emails: [] } })),
+        api.getMeetings({ status: 'upcoming', ...(clientId ? { clientId } : {}) }).catch(() => ({ data: { meetings: [] } }))
       ]);
       setStats(statsRes.data);
-      setRecentEmails(statsRes.data.emails || recentRes.data.emails || recentRes.data || []);
-      setMeetings(meetingsRes.data.meetings || meetingsRes.data || []);
-    } catch (err) { console.error(err); }
-    setLoading(false);
+      setRecentEmails(statsRes.data?.emails || recentRes.data?.emails || recentRes.data || []);
+      setMeetings(meetingsRes.data?.meetings || meetingsRes.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const firstName = user?.name?.split(' ')[0] || 'there';

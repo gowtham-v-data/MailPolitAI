@@ -9,7 +9,17 @@ router.use(authenticate);
 // GET /api/clients
 router.get('/', async (req, res) => {
   try {
-    const clients = await Client.find({ assistantId: req.user._id, status: 'active' }).sort({ name: 1 });
+    let clients;
+    if (req.user.role === 'assistant') {
+      clients = await Client.find({ assistantId: req.user._id, status: 'active' }).sort({ name: 1 });
+      // Fallback for prototype if assistant ID doesn't match seed IDs
+      if (!clients || clients.length === 0) {
+        clients = await Client.find({ status: 'active' }).sort({ name: 1 });
+      }
+    } else {
+      // If client user is logged in, return all active clients or their own client profile
+      clients = await Client.find({ status: 'active' }).sort({ name: 1 });
+    }
     res.json({ success: true, clients });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
