@@ -1,0 +1,478 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const User = require('../models/User');
+const Client = require('../models/Client');
+const Email = require('../models/Email');
+const EmailAccount = require('../models/EmailAccount');
+const Meeting = require('../models/Meeting');
+const ActivityLog = require('../models/ActivityLog');
+const { classifyEmail } = require('../services/aiClassifier');
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mailpilot';
+
+function daysAgo(d) { return new Date(Date.now() - d * 24 * 60 * 60 * 1000); }
+function hoursAgo(h) { return new Date(Date.now() - h * 60 * 60 * 1000); }
+
+async function seed() {
+  console.log('🌱 Connecting to MongoDB...');
+  await mongoose.connect(MONGODB_URI);
+  console.log('✅ Connected. Clearing collections...');
+
+  await Promise.all([
+    User.deleteMany({}), Client.deleteMany({}), Email.deleteMany({}),
+    EmailAccount.deleteMany({}), Meeting.deleteMany({}), ActivityLog.deleteMany({})
+  ]);
+  console.log('✅ Collections cleared.');
+
+  // ─── Users ───
+  console.log('👤 Creating users...');
+  const assistant = await User.create({ name: 'Sarah Mitchell', email: 'sarah@mailpilot.ai', password: 'password123', role: 'assistant' });
+  const clientUser = await User.create({ name: 'James Richardson', email: 'james@techvision.com', password: 'password123', role: 'client' });
+  console.log(`   ✅ Created ${assistant.name} (assistant) & ${clientUser.name} (client)`);
+
+  // ─── Clients ───
+  console.log('🏢 Creating clients...');
+  const james = await Client.create({
+    name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', phone: '+1-555-0101',
+    assistantId: assistant._id, status: 'active',
+    connectedAccounts: [{ provider: 'gmail', email: 'james.richardson@techvision.com', status: 'connected', lastSync: new Date(), connectedAt: daysAgo(30) }]
+  });
+  const emily = await Client.create({
+    name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', phone: '+1-555-0102',
+    assistantId: assistant._id, status: 'active',
+    connectedAccounts: [{ provider: 'outlook', email: 'emily.chen@greenleaf.vc', status: 'connected', lastSync: new Date(), connectedAt: daysAgo(25) }]
+  });
+  const michael = await Client.create({
+    name: 'Michael Torres', email: 'michael@atlasconsulting.com', company: 'Atlas Consulting', phone: '+1-555-0103',
+    assistantId: assistant._id, status: 'active',
+    connectedAccounts: [{ provider: 'gmail', email: 'michael@atlasconsulting.com', status: 'connected', lastSync: new Date(), connectedAt: daysAgo(20) }]
+  });
+  console.log('   ✅ Created 3 clients');
+
+  // ─── Email Accounts ───
+  console.log('📧 Creating email accounts...');
+  await EmailAccount.create([
+    { clientId: james._id, provider: 'gmail', email: 'james.richardson@techvision.com', displayName: 'James Richardson', status: 'connected', lastSync: new Date(), totalEmails: 30, unreadEmails: 12, connectedAt: daysAgo(30) },
+    { clientId: emily._id, provider: 'outlook', email: 'emily.chen@greenleaf.vc', displayName: 'Emily Chen', status: 'connected', lastSync: new Date(), totalEmails: 18, unreadEmails: 5, connectedAt: daysAgo(25) },
+    { clientId: michael._id, provider: 'gmail', email: 'michael@atlasconsulting.com', displayName: 'Michael Torres', status: 'connected', lastSync: new Date(), totalEmails: 14, unreadEmails: 3, connectedAt: daysAgo(20) }
+  ]);
+  console.log('   ✅ Created 3 email accounts');
+
+  // ─── Emails ───
+  console.log('✉️  Creating emails...');
+  const emailData = [
+    // ──── ASSISTANT_TO_REPLY (10) ────
+    {
+      clientId: james._id, threadId: 'thread-001', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'Office Admin', email: 'admin@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Conference Room B - Booking Request for Thursday',
+      messages: [
+        { id: 'msg-001', from: { name: 'Office Admin', email: 'admin@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nI wanted to confirm the booking for Conference Room B this Thursday at 2:00 PM for your product strategy meeting. The room is currently available and can accommodate up to 16 people.\n\nShould I also arrange for a projector and whiteboard setup? Please let me know if you need any AV equipment or refreshments for the session.\n\nBest regards,\nOffice Admin', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-002', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'Horizon Travel', email: 'bookings@horizontravel.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Flight Confirmation - NYC to San Francisco, Nov 20',
+      messages: [
+        { id: 'msg-002', from: { name: 'Horizon Travel', email: 'bookings@horizontravel.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear Mr. Richardson,\n\nYour flight booking has been confirmed. Here are the details:\n\n- Flight: UA 237\n- Route: JFK → SFO\n- Date: November 20, 2024\n- Departure: 8:15 AM EST\n- Arrival: 11:30 AM PST\n- Class: Business\n- Seat: 4A (Window)\n\nPlease confirm if you need hotel and ground transportation arrangements in San Francisco. We recommend the Four Seasons or Ritz-Carlton based on your preferences.\n\nKind regards,\nHorizon Travel Team', timestamp: daysAgo(2) }
+      ],
+      isUnread: true, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-003', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'IT Support', email: 'it.support@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'New Laptop Setup - James Richardson',
+      messages: [
+        { id: 'msg-003', from: { name: 'IT Support', email: 'it.support@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nYour new MacBook Pro 16" M3 Max has arrived and is ready for setup. We need to schedule a 45-minute slot to migrate your data, install necessary software, and configure your security settings.\n\nCould you let us know a convenient time this week? We can also do the setup during lunch if that works better.\n\nThanks,\nIT Support Team', timestamp: daysAgo(3) }
+      ],
+      isUnread: false, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-004', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'FreshBites Catering', email: 'orders@freshbites.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Lunch Catering for Board Meeting - Menu Selection',
+      messages: [
+        { id: 'msg-004', from: { name: 'FreshBites Catering', email: 'orders@freshbites.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hello,\n\nThank you for reaching out about catering for your upcoming board meeting on November 22nd. We can accommodate 12 guests with the following menu options:\n\nOption A: Mediterranean Platter ($28/person)\nOption B: Executive Lunch Box ($35/person)\nOption C: Premium Buffet ($45/person)\n\nPlease let us know your selection and any dietary restrictions or allergies we should be aware of. We need confirmation by November 19th.\n\nBest,\nFreshBites Team', timestamp: daysAgo(2) }
+      ],
+      isUnread: true, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-005', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'OfficePlus', email: 'sales@officeplus.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Quarterly Office Supplies Order - Q4 2024',
+      messages: [
+        { id: 'msg-005', from: { name: 'OfficePlus', email: 'sales@officeplus.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear TechVision Team,\n\nIt\'s time for your quarterly office supplies order. Based on your previous orders, we\'ve prepared a suggested list. The total comes to $1,847.50 with your corporate discount applied.\n\nPlease review and confirm the attached order list. We can deliver within 3 business days of confirmation.\n\nRegards,\nOfficePlus Sales', timestamp: daysAgo(5) }
+      ],
+      isUnread: false, createdAt: daysAgo(5)
+    },
+    {
+      clientId: james._id, threadId: 'thread-006', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'Facilities Team', email: 'facilities@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Parking Space Assignment - Executive Level',
+      messages: [
+        { id: 'msg-006', from: { name: 'Facilities Team', email: 'facilities@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nDue to the building renovation, executive parking spaces have been reassigned. Your new spot is E-12 on Level 2 of the parking garage. The change takes effect next Monday.\n\nPlease confirm you\'ve received this notice so we can update our records.\n\nFacilities Management', timestamp: daysAgo(4) }
+      ],
+      isUnread: false, createdAt: daysAgo(4)
+    },
+    {
+      clientId: james._id, threadId: 'thread-007', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'TechSummit Events', email: 'events@techsummit2024.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'TechSummit 2024 - Speaker Registration Confirmation',
+      messages: [
+        { id: 'msg-007', from: { name: 'TechSummit Events', email: 'events@techsummit2024.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear Mr. Richardson,\n\nCongratulations! Your speaking session at TechSummit 2024 has been confirmed. We need the following materials by December 1st:\n\n1. Professional headshot (300 DPI minimum)\n2. Updated bio (200 words)\n3. Session abstract (500 words)\n4. Any AV requirements\n\nYour session "The Future of AI in Enterprise" is scheduled for December 15th at 2:00 PM in the Main Hall.\n\nBest regards,\nTechSummit Team', timestamp: daysAgo(6) }
+      ],
+      isUnread: true, createdAt: daysAgo(6)
+    },
+    {
+      clientId: james._id, threadId: 'thread-008', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'Sarah Kim', email: 'sarah.k@talentfirst.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Interview Scheduling - VP of Engineering Candidates',
+      messages: [
+        { id: 'msg-008a', from: { name: 'Sarah Kim', email: 'sarah.k@talentfirst.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nWe have 3 strong candidates for the VP of Engineering position who have passed the initial rounds. Could we schedule final interviews for next week?\n\nCandidate 1: Available Mon/Tue\nCandidate 2: Available Tue/Wed\nCandidate 3: Available Thu/Fri\n\nEach interview would take about 60 minutes. Please let me know James\'s availability.\n\nBest,\nSarah Kim\nTalentFirst Recruiting', timestamp: daysAgo(1) },
+        { id: 'msg-008b', from: { name: 'James Richardson', email: 'james.richardson@techvision.com' }, to: [{ name: 'Sarah Kim', email: 'sarah.k@talentfirst.com' }], content: 'Sarah, please coordinate with my assistant to find suitable time slots. I\'d prefer back-to-back interviews if possible.', timestamp: hoursAgo(20) }
+      ],
+      isUnread: true, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-009', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'David Park', email: 'david.park@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Q3 Report - Final Review Before Submission',
+      messages: [
+        { id: 'msg-009', from: { name: 'David Park', email: 'david.park@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi,\n\nThe Q3 financial report is ready for final review. I\'ve attached the complete report with all department summaries. The submission deadline to the board is this Friday at 5 PM.\n\nCould you please ensure this gets reviewed and submitted on time? Let me know if any revisions are needed.\n\nThanks,\nDavid Park\nFinance Department', timestamp: daysAgo(2) }
+      ],
+      isUnread: false, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-010', intendedType: 'ASSISTANT_TO_REPLY',
+      sender: { name: 'Cloud Services Billing', email: 'accounting@cloudservices.io' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Invoice #INV-2024-0847 - Cloud Services November',
+      messages: [
+        { id: 'msg-010', from: { name: 'Cloud Services Billing', email: 'accounting@cloudservices.io' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear TechVision Inc,\n\nPlease find attached your invoice for November cloud services:\n\nInvoice #: INV-2024-0847\nAmount: $4,200.00\nDue Date: December 1, 2024\n\nServices: AWS hosting, database management, CDN bandwidth\n\nPayment can be made via bank transfer or credit card. Please process this invoice at your earliest convenience.\n\nCloud Services Accounting', timestamp: daysAgo(3) }
+      ],
+      isUnread: false, createdAt: daysAgo(3)
+    },
+
+    // ──── CLIENT_TO_REPLY (8) ────
+    {
+      clientId: james._id, threadId: 'thread-011', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Robert Chang', email: 'robert.chang@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Board Meeting Agenda - Budget Approval Required',
+      messages: [
+        { id: 'msg-011a', from: { name: 'Robert Chang', email: 'robert.chang@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nThe 2025 budget proposal is ready for your review and approval. The total allocation is $2.4M, broken down as follows:\n\n- Engineering: $1.2M\n- Marketing: $450K\n- Operations: $350K\n- R&D: $400K\n\nThe board expects your approval before the next meeting on November 25th. This is a critical decision that requires your personal sign-off as CEO.\n\nPlease review the attached detailed breakdown and let me know your decision.\n\nRobert Chang\nBoard Member', timestamp: daysAgo(2) },
+        { id: 'msg-011b', from: { name: 'James Richardson', email: 'james.richardson@techvision.com' }, to: [{ name: 'Robert Chang', email: 'robert.chang@techvision.com' }], content: 'Robert, thanks for preparing this. I\'ll review the detailed breakdown this week. A few questions - can you clarify the 20% increase in the engineering budget? Also, should we consider reallocating some marketing spend to R&D?', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-012', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Sarah Park', email: 'sarah.park@sequoiacap.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Series B Discussion - Follow-up Meeting Request',
+      messages: [
+        { id: 'msg-012', from: { name: 'Sarah Park', email: 'sarah.park@sequoiacap.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear James,\n\nThank you for the excellent presentation last week. Our investment committee was very impressed with TechVision\'s growth trajectory and AI capabilities.\n\nWe would like to schedule a follow-up meeting to discuss the Series B terms in more detail. Specifically, we want to explore:\n\n1. Valuation expectations\n2. Use of funds breakdown\n3. Board seat arrangements\n4. Timeline for closing\n\nThis is a conversation I\'d like to have directly with you. Would next Tuesday or Wednesday work?\n\nBest regards,\nSarah Park\nPartner, Sequoia Capital', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-013', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Lisa Wang', email: 'lisa.wang@innovatetech.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Strategic Partnership Proposal - AI Integration',
+      messages: [
+        { id: 'msg-013', from: { name: 'Lisa Wang', email: 'lisa.wang@innovatetech.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nI hope this finds you well. I\'m reaching out to propose a strategic partnership between InnovateTech and TechVision for AI integration.\n\nOur proposal includes joint development of an AI-powered analytics platform that combines our machine learning infrastructure with your enterprise client base. We believe this partnership could generate $5M+ in revenue within the first year.\n\nI\'d love to discuss this with you personally and explore the possibilities. Your strategic vision would be invaluable in shaping this initiative.\n\nBest regards,\nLisa Wang\nCEO, InnovateTech', timestamp: daysAgo(3) }
+      ],
+      isUnread: true, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-014', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Mark Johnson', email: 'mark.johnson@lawfirm.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Contract Review - Acquisition Terms for DataFlow Inc',
+      messages: [
+        { id: 'msg-014', from: { name: 'Mark Johnson', email: 'mark.johnson@lawfirm.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Dear James,\n\nThe acquisition agreement for DataFlow Inc has been drafted and requires your review. Key terms:\n\n- Purchase price: $8.5M\n- Payment structure: 60% cash, 40% stock\n- Employee retention: 18-month vesting for key personnel\n- IP transfer: Full ownership of all patents\n\nWe need your signature on the Letter of Intent by November 28th. Please review the terms carefully and let me know if any modifications are needed.\n\nThis document requires your personal authorization as CEO.\n\nBest,\nMark Johnson, Esq.\nSenior Partner, Johnson & Associates', timestamp: daysAgo(4) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(4)
+    },
+    {
+      clientId: james._id, threadId: 'thread-015', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Jessica Adams', email: 'jessica.adams@techcrunch.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Interview Request - TechVision\'s AI Strategy',
+      messages: [
+        { id: 'msg-015', from: { name: 'Jessica Adams', email: 'jessica.adams@techcrunch.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nI\'m writing a feature piece on emerging AI companies for TechCrunch and would love to include TechVision. Your work in enterprise AI has been generating significant industry buzz.\n\nWould you be available for a 30-minute interview next week? I\'d like to discuss your vision for AI in enterprise software and TechVision\'s roadmap for 2025.\n\nThis would be a great opportunity for media exposure ahead of your Series B.\n\nBest,\nJessica Adams\nSenior Reporter, TechCrunch', timestamp: daysAgo(5) }
+      ],
+      isUnread: false, createdAt: daysAgo(5)
+    },
+    {
+      clientId: james._id, threadId: 'thread-016', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Alex Martinez', email: 'alex.martinez@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Product Launch Decision - Q1 2025 Timeline',
+      messages: [
+        { id: 'msg-016a', from: { name: 'Alex Martinez', email: 'alex.martinez@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nWe need your go/no-go decision on the Q1 2025 product launch. Here are our three options:\n\nOption A: Launch January 15 with core features (80% ready)\nOption B: Launch February 28 with full feature set (100% ready)\nOption C: Soft launch January 15, full launch March 15\n\nEach option has different implications for our sales pipeline and competitive positioning. I need your decision by Friday.\n\nAlex Martinez\nVP Product', timestamp: daysAgo(3) },
+        { id: 'msg-016b', from: { name: 'James Richardson', email: 'james.richardson@techvision.com' }, to: [{ name: 'Alex Martinez', email: 'alex.martinez@techvision.com' }], content: 'Alex, leaning towards Option C. Can you put together a risk assessment for the soft launch approach? I want to understand the engineering resources needed.', timestamp: daysAgo(2) },
+        { id: 'msg-016c', from: { name: 'Alex Martinez', email: 'alex.martinez@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Here\'s the risk assessment for Option C:\n\n- Engineering: Need 4 additional contractors ($120K)\n- Risk: Beta users may encounter bugs, affecting brand perception\n- Upside: Early market feedback, 6-week head start on competitors\n- Revenue impact: Potential $800K in early Q1 revenue\n\nI still need your final decision to move forward with resource allocation. Your call, James.', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-017', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Nina Patel', email: 'nina.patel@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Equity Restructuring Discussion - Confidential',
+      messages: [
+        { id: 'msg-017', from: { name: 'Nina Patel', email: 'nina.patel@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nThis is confidential. We need to discuss the employee stock option pool restructuring before the Series B closes. Current pool is at 12% and the investors want us to expand it to 15%.\n\nThis directly impacts our ownership percentages and needs to be handled between us as co-founders. Can we meet privately this week to align on this?\n\nI have concerns about dilution and want your thoughts before we respond to the investors.\n\n- Nina', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-018', intendedType: 'CLIENT_TO_REPLY',
+      sender: { name: 'Tom Wilson', email: 'tom.wilson@enterprise-client.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Urgent: Service Level Concerns - Enterprise Account',
+      messages: [
+        { id: 'msg-018', from: { name: 'Tom Wilson', email: 'tom.wilson@enterprise-client.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nI\'m escalating this directly to you because we\'ve experienced 3 service outages in the past month. Our enterprise contract guarantees 99.9% uptime, and we\'re currently at 98.2%.\n\nUnless we see immediate improvements and a personal commitment from your leadership team, we will be forced to evaluate alternative providers. Our contract renewal is in Q1 2025.\n\nThis needs your personal attention. A call from your account manager won\'t suffice at this point.\n\nTom Wilson\nCTO, Enterprise Solutions Corp', timestamp: hoursAgo(8) }
+      ],
+      isUnread: true, isImportant: true, createdAt: hoursAgo(8)
+    },
+
+    // ──── NO_REPLY_NEEDED (7) ────
+    {
+      clientId: james._id, threadId: 'thread-019', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'LinkedIn', email: 'notifications@linkedin.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Your Weekly Professional Update',
+      messages: [
+        { id: 'msg-019', from: { name: 'LinkedIn', email: 'notifications@linkedin.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nHere\'s your weekly update:\n- 12 people viewed your profile\n- 3 new connection requests\n- 5 articles in your feed about AI and enterprise software\n- Your post about AI strategy received 234 likes\n\nSee all updates on LinkedIn.', timestamp: daysAgo(1) }
+      ],
+      isUnread: false, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-020', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Google Analytics', email: 'analytics-noreply@google.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Weekly Website Traffic Report - TechVision.com',
+      messages: [
+        { id: 'msg-020', from: { name: 'Google Analytics', email: 'analytics-noreply@google.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'TechVision.com Weekly Report\n\nSessions: 24,587 (+12% vs last week)\nUsers: 18,234\nPage Views: 67,891\nBounce Rate: 34.2%\nTop Page: /products/ai-platform\n\nThis is an automated report. No reply needed.', timestamp: daysAgo(2) }
+      ],
+      isUnread: false, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-021', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Stripe', email: 'noreply@stripe.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Payment Received - Invoice #8847',
+      messages: [
+        { id: 'msg-021', from: { name: 'Stripe', email: 'noreply@stripe.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Payment confirmation\n\nInvoice #8847 has been paid.\nAmount: $12,500.00\nFrom: Meridian Technologies\nDate: November 13, 2024\n\nFunds will be available in your account within 2 business days.', timestamp: daysAgo(2) }
+      ],
+      isUnread: false, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-022', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Standup Bot', email: 'standup-bot@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Daily Standup Summary - Engineering Team',
+      messages: [
+        { id: 'msg-022', from: { name: 'Standup Bot', email: 'standup-bot@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Engineering Team Daily Standup - November 14, 2024\n\nCompleted:\n- API v2 migration (Backend team)\n- Mobile app bug fixes (Mobile team)\n- Database optimization (DevOps)\n\nIn Progress:\n- AI model training pipeline\n- Dashboard redesign\n- Payment integration testing\n\nBlocked:\n- Waiting for design specs for onboarding flow\n\n8 of 10 team members reported.', timestamp: hoursAgo(4) }
+      ],
+      isUnread: true, createdAt: hoursAgo(4)
+    },
+    {
+      clientId: james._id, threadId: 'thread-023', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Tech Industry Weekly', email: 'newsletter@techindustry.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'This Week in Tech - AI Revolution Edition',
+      messages: [
+        { id: 'msg-023', from: { name: 'Tech Industry Weekly', email: 'newsletter@techindustry.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'This Week in Tech Newsletter\n\n🔥 Top Stories:\n1. OpenAI announces new enterprise features\n2. Google Cloud expands AI infrastructure\n3. Enterprise AI adoption surges 40% in Q3\n4. New regulations for AI in healthcare\n\nClick to read full articles on our website.\n\nTo unsubscribe, click here.', timestamp: daysAgo(3) }
+      ],
+      isUnread: false, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-024', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Security Team', email: 'security@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Password Successfully Changed',
+      messages: [
+        { id: 'msg-024', from: { name: 'Security Team', email: 'security@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Your password was successfully changed on November 12, 2024 at 3:45 PM.\n\nIf you did not make this change, please contact IT security immediately.\n\nThis is an automated notification. Do not reply.', timestamp: daysAgo(3) }
+      ],
+      isUnread: false, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-025', intendedType: 'NO_REPLY_NEEDED',
+      sender: { name: 'Cloud Services Support', email: 'support@cloudservices.io' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Ticket #4521 Resolved - Server Migration Complete',
+      messages: [
+        { id: 'msg-025', from: { name: 'Cloud Services Support', email: 'support@cloudservices.io' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Support Ticket #4521 has been resolved.\n\nIssue: Server migration from us-east-1 to us-west-2\nStatus: Completed\nDowntime: 0 minutes (zero-downtime migration)\n\nAll services are running normally. This ticket is now closed.\n\nCloud Services Support Team', timestamp: daysAgo(5) }
+      ],
+      isUnread: false, createdAt: daysAgo(5)
+    },
+
+    // ──── NEEDS_REVIEW (5) ────
+    {
+      clientId: james._id, threadId: 'thread-026', intendedType: 'NEEDS_REVIEW',
+      sender: { name: 'Karen White', email: 'karen.white@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Team Offsite Planning + Strategic Goals Discussion',
+      messages: [
+        { id: 'msg-026', from: { name: 'Karen White', email: 'karen.white@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nI\'m organizing the Q1 team offsite and need help with two things:\n\n1. Logistics (admin): Venue booking, catering, travel for 25 people — can your assistant handle these?\n\n2. Strategic agenda (requires you): I need your input on the 2025 strategic goals we\'ll present. The team looks to you for vision and direction.\n\nCan we split this? Admin stuff to your assistant, but I\'d like 30 minutes with you to align on the strategic content.\n\nThanks,\nKaren', timestamp: daysAgo(2) }
+      ],
+      isUnread: true, createdAt: daysAgo(2)
+    },
+    {
+      clientId: james._id, threadId: 'thread-027', intendedType: 'NEEDS_REVIEW',
+      sender: { name: 'Daniel Ross', email: 'daniel.ross@gmail.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Quick Favor - Introduction to Your CTO',
+      messages: [
+        { id: 'msg-027', from: { name: 'Daniel Ross', email: 'daniel.ross@gmail.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hey James,\n\nHope you\'re doing well! It\'s been a while since we caught up at the Stanford alumni event.\n\nI have a quick favor — I\'m working on a new startup in the developer tools space and would love an introduction to your CTO. I think there could be some interesting synergies.\n\nNo rush, but would appreciate it if you could connect us when you get a chance. Happy to send my pitch deck first if that helps.\n\nCheers,\nDaniel', timestamp: daysAgo(4) }
+      ],
+      isUnread: true, createdAt: daysAgo(4)
+    },
+    {
+      clientId: james._id, threadId: 'thread-028', intendedType: 'NEEDS_REVIEW',
+      sender: { name: 'Procurement', email: 'procurement@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'New Software Licenses + Architecture Decision',
+      messages: [
+        { id: 'msg-028', from: { name: 'Procurement', email: 'procurement@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nTwo items need attention:\n\n1. Software Licenses (routine): We need to renew our Jira and Confluence licenses ($8,400/year). Standard process, just need purchase approval.\n\n2. Architecture Decision (strategic): The engineering team is evaluating whether to migrate from AWS to a multi-cloud setup (AWS + GCP). This has significant cost and technical implications.\n\nItem 1 is straightforward. Item 2 needs your strategic input and possibly a meeting with the engineering leads.\n\nProcurement Team', timestamp: daysAgo(3) }
+      ],
+      isUnread: true, createdAt: daysAgo(3)
+    },
+    {
+      clientId: james._id, threadId: 'thread-029', intendedType: 'NEEDS_REVIEW',
+      sender: { name: 'HR Department', email: 'hr@techvision.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Company Retreat Planning + Compensation Review',
+      messages: [
+        { id: 'msg-029', from: { name: 'HR Department', email: 'hr@techvision.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'Hi James,\n\nWe have two items for your attention:\n\n1. Company Retreat (December 15-17): We\'re finalizing logistics — venue, transportation, team activities. Your assistant can help coordinate.\n\n2. Compensation Review: The annual compensation review results are ready. Several key employees are flagged for retention risk. This requires your personal review and approval of adjustments totaling $340K.\n\nPlease let us know how you\'d like to handle both.\n\nHR Team', timestamp: daysAgo(1) }
+      ],
+      isUnread: true, isImportant: true, createdAt: daysAgo(1)
+    },
+    {
+      clientId: james._id, threadId: 'thread-030', intendedType: 'NEEDS_REVIEW',
+      sender: { name: 'Michael Brown', email: 'michael.brown@competitor.com' },
+      recipients: [{ name: 'James Richardson', email: 'james.richardson@techvision.com', type: 'to' }],
+      subject: 'Collaboration Opportunity or Competitive Intel?',
+      messages: [
+        { id: 'msg-030', from: { name: 'Michael Brown', email: 'michael.brown@competitor.com' }, to: [{ name: 'James Richardson', email: 'james.richardson@techvision.com' }], content: 'James,\n\nI know our companies compete in some areas, but I believe there\'s room for collaboration in the enterprise AI space. Rather than fighting over the same market, what if we explored a joint offering?\n\nI\'d love to grab coffee and discuss informally. No commitment, just an exploration of possibilities.\n\nLet me know what you think.\n\nMichael Brown\nCEO, NexaTech', timestamp: daysAgo(6) }
+      ],
+      isUnread: false, createdAt: daysAgo(6)
+    }
+  ];
+
+  for (let i = 0; i < emailData.length; i++) {
+    const data = emailData[i];
+    const intendedType = data.intendedType;
+    delete data.intendedType;
+
+    const email = new Email(data);
+
+    // Run AI classifier
+    try {
+      const result = await classifyEmail(email);
+      email.classification = {
+        type: intendedType, // Override with intended type for correct demo data
+        confidence: result.confidence,
+        reason: result.reason,
+        summary: result.summary,
+        actionRequired: intendedType === 'ASSISTANT_TO_REPLY' || intendedType === 'CLIENT_TO_REPLY',
+        suggestedAction: result.suggestedAction,
+        priority: result.priority,
+        classifiedAt: new Date(),
+        classifiedBy: 'ai'
+      };
+      email.category = result.category;
+      if (result.extractedInfo) email.extractedInfo = result.extractedInfo;
+    } catch (err) {
+      email.classification = {
+        type: intendedType,
+        confidence: 0.85,
+        reason: 'Classified during seeding',
+        summary: `Email regarding "${email.subject}"`,
+        actionRequired: intendedType !== 'NO_REPLY_NEEDED',
+        suggestedAction: 'Review this email',
+        priority: 'MEDIUM',
+        classifiedAt: new Date(),
+        classifiedBy: 'ai'
+      };
+    }
+
+    email.classificationHistory = [{
+      type: intendedType,
+      confidence: email.classification.confidence,
+      reason: email.classification.reason,
+      changedBy: 'ai',
+      changedAt: new Date()
+    }];
+
+    // Set importance for CLIENT_TO_REPLY with high priority
+    if (intendedType === 'CLIENT_TO_REPLY') {
+      email.isImportant = true;
+      email.classification.priority = email.classification.priority === 'LOW' ? 'MEDIUM' : email.classification.priority;
+    }
+
+    await email.save();
+    console.log(`   ✉️  [${i + 1}/${emailData.length}] ${intendedType}: "${email.subject}"`);
+  }
+  console.log(`✅ Created ${emailData.length} emails`);
+
+  // ─── Meetings ───
+  console.log('📅 Creating meetings...');
+  const meetingData = [
+    { clientId: james._id, title: 'Quarterly Board Review', date: new Date(Date.now() + 3 * 24*60*60*1000), time: '10:00 AM', duration: 120, location: 'Board Room A', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }, { name: 'Robert Chang', email: 'robert.chang@techvision.com' }, { name: 'Nina Patel', email: 'nina.patel@techvision.com' }], status: 'upcoming', notes: 'Q4 review and 2025 budget approval' },
+    { clientId: james._id, title: 'Series B Investor Call', date: new Date(Date.now() + 5 * 24*60*60*1000), time: '2:00 PM', duration: 60, location: 'Zoom', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }, { name: 'Sarah Park', email: 'sarah.park@sequoiacap.com' }], status: 'upcoming', notes: 'Discuss Series B terms and valuation' },
+    { clientId: james._id, title: 'Team Strategy Offsite', date: new Date(Date.now() + 1 * 24*60*60*1000), time: '9:00 AM', duration: 480, location: 'Innovation Hub', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }, { name: 'Alex Martinez', email: 'alex.martinez@techvision.com' }, { name: 'Karen White', email: 'karen.white@techvision.com' }], status: 'upcoming', notes: '2025 strategic planning session' },
+    { clientId: james._id, title: 'Product Demo - Enterprise Client', date: new Date(Date.now() + 2 * 24*60*60*1000), time: '11:00 AM', duration: 90, location: 'Demo Room', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }, { name: 'Tom Wilson', email: 'tom.wilson@enterprise-client.com' }], status: 'upcoming', notes: 'Address service level concerns and demo new features' },
+    { clientId: james._id, title: 'Monthly All-Hands', date: new Date(Date.now() + 7 * 24*60*60*1000), time: '3:00 PM', duration: 60, location: 'Main Auditorium', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }], status: 'upcoming', notes: 'Company updates and Q&A' },
+    { clientId: james._id, title: 'Client Lunch - Chen Industries', date: new Date(Date.now() + 4 * 24*60*60*1000), time: '12:30 PM', duration: 90, location: 'The Capital Grille', participants: [{ name: 'James Richardson', email: 'james@techvision.com' }, { name: 'Emily Chen', email: 'emily.chen@greenleaf.vc' }], status: 'upcoming', notes: 'Relationship building and potential partnership' }
+  ];
+  await Meeting.insertMany(meetingData);
+  console.log('✅ Created 6 meetings');
+
+  // ─── Activity Log ───
+  console.log('📋 Creating activity log...');
+  const activities = [
+    { clientId: james._id, action: 'ai_classification', description: 'AI classified "Board Meeting Agenda" as CLIENT_TO_REPLY with 92% confidence', entityType: 'classification', createdAt: hoursAgo(2) },
+    { clientId: james._id, action: 'ai_classification', description: 'AI classified "Flight Confirmation" as ASSISTANT_TO_REPLY with 95% confidence', entityType: 'classification', createdAt: hoursAgo(4) },
+    { clientId: james._id, action: 'email_completed', description: 'Marked "Weekly Newsletter" as completed', entityType: 'email', createdAt: hoursAgo(6) },
+    { clientId: james._id, action: 'draft_generated', description: 'AI generated a professional draft reply for "Conference Room Booking"', entityType: 'email', createdAt: hoursAgo(8) },
+    { clientId: james._id, action: 'client_delegated', description: 'Client delegated "Office Supplies Order" to assistant', entityType: 'email', createdAt: hoursAgo(12) },
+    { clientId: james._id, action: 'account_connected', description: 'Connected Gmail account: james.richardson@techvision.com', entityType: 'account', createdAt: daysAgo(1) },
+    { clientId: james._id, action: 'ai_classification', description: 'AI classified "Strategic Partnership Proposal" as CLIENT_TO_REPLY with 89% confidence', entityType: 'classification', createdAt: daysAgo(1) },
+    { clientId: james._id, action: 'manual_classification', description: 'Manually reclassified "Team Offsite" from NEEDS_REVIEW to ASSISTANT_TO_REPLY', entityType: 'classification', createdAt: daysAgo(2) },
+    { clientId: emily._id, action: 'account_connected', description: 'Connected Outlook account: emily.chen@greenleaf.vc', entityType: 'account', createdAt: daysAgo(2) },
+    { clientId: james._id, action: 'email_completed', description: 'Marked "Password Changed" notification as completed', entityType: 'email', createdAt: daysAgo(3) }
+  ];
+  await ActivityLog.insertMany(activities);
+  console.log('✅ Created 10 activity log entries');
+
+  console.log('\n🎉 Seed completed successfully!');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('Demo credentials:');
+  console.log('  Assistant: sarah@mailpilot.ai / password123');
+  console.log('  Client:    james@techvision.com / password123');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+seed().catch((err) => {
+  console.error('❌ Seed failed:', err);
+  process.exit(1);
+});
