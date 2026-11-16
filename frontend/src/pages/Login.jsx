@@ -39,7 +39,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
         <div className="relative z-10">
           <div className="flex items-center gap-3.5 mb-16">
-            <img src="/logo.png" alt="MailPilot AI" className="w-12 h-12 object-contain bg-white rounded-2xl p-1 shadow-md flex-shrink-0" />
+            <img src="/logo.png" alt="MailPilot AI" className="w-14 h-14 object-contain drop-shadow-md flex-shrink-0" />
             <div>
               <span className="text-white font-bold text-xl block leading-tight">MailPilot AI</span>
               <span className="text-indigo-200 text-xs font-medium">Your AI Email Assistant</span>
@@ -59,7 +59,7 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-white">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <img src="/logo.png" alt="MailPilot AI" className="w-10 h-10 object-contain rounded-xl shadow-xs" />
+            <img src="/logo.png" alt="MailPilot AI" className="w-11 h-11 object-contain flex-shrink-0" />
             <div>
               <span className="font-bold text-lg text-slate-900 block leading-tight">MailPilot AI</span>
               <span className="text-xs text-slate-500 font-medium">Your AI Email Assistant</span>

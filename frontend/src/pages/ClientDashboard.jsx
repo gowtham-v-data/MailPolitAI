@@ -123,22 +123,19 @@ export default function ClientDashboard() {
   return (
     <div className="space-y-6">
       {/* Intro Header */}
-      <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xs border border-slate-200/80 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold mb-2 border border-amber-100">
-              <Sparkles className="w-3 h-3 text-amber-500" /> AI Filtered
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">Your Action Required</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Your Action Required</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Emails below have been automatically identified by AI as requiring your personal decision or input. All other routine emails are handled directly by your assistant.
             </p>
           </div>
           <button
             onClick={fetchEmails}
-            className="self-start sm:self-center flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
+            className="self-start sm:self-center flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             Refresh
           </button>
         </div>
@@ -146,26 +143,26 @@ export default function ClientDashboard() {
 
       {/* Stats Counter Bar */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
-          <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-            <Mail className="w-4 h-4 text-amber-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200/80 dark:border-slate-800 p-4 text-center">
+          <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/60 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <Mail className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{emails.length}</p>
-          <p className="text-xs text-slate-500 font-medium">Requiring Attention</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{emails.length}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Requiring Attention</p>
         </div>
-        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
-          <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200/80 dark:border-slate-800 p-4 text-center">
+          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{handledCount}</p>
-          <p className="text-xs text-slate-500 font-medium">Handled Today</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{handledCount}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Handled Today</p>
         </div>
-        <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 text-center">
-          <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-            <UserCheck className="w-4 h-4 text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200/80 dark:border-slate-800 p-4 text-center">
+          <div className="w-9 h-9 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+            <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{delegatedCount}</p>
-          <p className="text-xs text-slate-500 font-medium">Delegated to Assistant</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{delegatedCount}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Delegated to Assistant</p>
         </div>
       </div>
 
@@ -179,10 +176,10 @@ export default function ClientDashboard() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
               Pending Items ({emails.length})
             </h2>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               Sorted by urgency
             </span>
           </div>
@@ -193,7 +190,7 @@ export default function ClientDashboard() {
             return (
               <div
                 key={email._id}
-                className="bg-white rounded-xl shadow-xs border border-slate-200/90 p-5 hover:border-slate-300 hover:shadow-md transition-all"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200/90 dark:border-slate-800 p-5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md transition-all"
               >
                 <div className="flex items-start gap-4">
                   <div
@@ -205,64 +202,64 @@ export default function ClientDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                           {senderName}
                         </span>
-                        <h3 className="text-base font-bold text-slate-900 hover:text-indigo-600 cursor-pointer transition-colors"
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
                             onClick={() => navigate(`/client/email/${email._id}`)}>
                           {email.subject}
                         </h3>
                       </div>
                       <div className="flex items-center gap-2 self-start flex-shrink-0">
                         <PriorityBadge priority={email.classification?.priority} />
-                        <span className="text-xs text-slate-400 font-medium">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                           {formatDate(email.createdAt)}
                         </span>
                       </div>
                     </div>
 
                     {/* AI Executive Summary */}
-                    <div className="bg-slate-50 rounded-lg p-3 my-2.5 border border-slate-100">
-                      <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="bg-slate-50 dark:bg-slate-800/80 rounded-lg p-3 my-2.5 border border-slate-100 dark:border-slate-800">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                         AI Summary
                       </p>
-                      <p className="text-sm text-slate-700 leading-relaxed">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                         {email.classification?.summary || email.preview || 'No summary available'}
                       </p>
                     </div>
 
                     {/* Why attention needed */}
-                    <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50/70 border border-amber-200/60 rounded-lg p-2.5 my-2">
+                    <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 rounded-lg p-2.5 my-2">
                       <span className="font-semibold flex-shrink-0">Why you need to respond:</span>
                       <span className="italic">{email.classification?.reason || 'This conversation requires executive authorization.'}</span>
                     </div>
 
                     {/* Suggested Action */}
                     {email.classification?.suggestedAction && (
-                      <div className="text-xs text-slate-600 font-medium my-2">
-                        <span className="text-indigo-600 font-semibold">Suggested Action: </span>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 font-medium my-2">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Suggested Action: </span>
                         {email.classification.suggestedAction}
                       </div>
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2.5 mt-4 pt-3 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                       <button
                         onClick={() => navigate(`/client/email/${email._id}`)}
-                        className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                        className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-slate-800 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1.5 shadow-xs"
                       >
                         Open Conversation <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleMarkHandled(email._id)}
-                        className="px-3.5 py-1.5 text-xs font-semibold border border-emerald-300 text-emerald-700 bg-emerald-50/50 rounded-lg hover:bg-emerald-100 transition-colors inline-flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 text-xs font-semibold border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/40 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors inline-flex items-center gap-1.5"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Mark Handled
                       </button>
                       <button
                         onClick={() => handleDelegate(email._id)}
-                        className="px-3.5 py-1.5 text-xs font-semibold border border-indigo-200 text-indigo-700 bg-indigo-50/50 rounded-lg hover:bg-indigo-100 transition-colors inline-flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 text-xs font-semibold border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 bg-indigo-50/50 dark:bg-indigo-950/40 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors inline-flex items-center gap-1.5"
                       >
                         <UserCheck className="w-3.5 h-3.5" /> Delegate to Assistant
                       </button>

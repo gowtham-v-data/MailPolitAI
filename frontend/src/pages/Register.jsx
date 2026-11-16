@@ -24,7 +24,7 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 justify-center mb-8">
-          <img src="/logo.png" alt="MailPilot AI" className="w-11 h-11 object-contain rounded-xl shadow-xs" />
+          <img src="/logo.png" alt="MailPilot AI" className="w-12 h-12 object-contain flex-shrink-0" />
           <div className="text-left">
             <span className="font-bold text-xl text-slate-900 block leading-tight">MailPilot AI</span>
             <span className="text-xs text-slate-500 font-medium">Your AI Email Assistant</span>
