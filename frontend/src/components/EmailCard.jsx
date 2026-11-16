@@ -8,9 +8,14 @@ import { stringToColor, getInitials, formatDate } from '../utils/helpers';
 function cleanPreview(str) {
   if (!str) return '';
   return String(str)
-    .replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ')
+    .replace(/&([a-zA-Z0-9#]+)[\r\n\s]+([a-zA-Z0-9]+);/g, '&$1$2;')
+    .replace(/&nb[\r\n\s]*sp;?/gi, ' ')
+    .replace(/&zwn[\r\n\s]*j;?/gi, ' ')
+    .replace(/(?:&(?:nbsp|zwnj|zwj|shy);?|\bsp;|\b&nb\b|[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]|[\r\n\s]){4,}/gi, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&zwnj;/gi, '')
+    .replace(/&(?:nb|zwn|zw|amp|quot|apos|lt|gt)(?:\s|\.\.\.|$|\b)/gi, ' ')
+    .replace(/\bsp;(?:\s|\.\.\.|$|\b)/gi, ' ')
     .replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .trim();

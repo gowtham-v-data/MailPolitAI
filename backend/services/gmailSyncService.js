@@ -48,6 +48,14 @@ function cleanEmailText(text = '') {
   if (!text) return '';
   let cleaned = String(text);
 
+  // 0. Reconnect HTML entities split across line breaks (e.g. '&nb\r\nsp;' -> '&nbsp;', '&zwn\nj;' -> '&zwnj;')
+  cleaned = cleaned.replace(/&([a-zA-Z0-9#]+)[\r\n\s]+([a-zA-Z0-9]+);/g, '&$1$2;');
+
+  // Handle broken '&nb' followed by 'sp;' or newline
+  cleaned = cleaned.replace(/&nb[\r\n\s]*sp;?/gi, ' ');
+  cleaned = cleaned.replace(/&zwn[\r\n\s]*j;?/gi, ' ');
+  cleaned = cleaned.replace(/&zw[\r\n\s]*j;?/gi, ' ');
+
   // 1. Strip <style> and <script> contents
   cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ');
   cleaned = cleaned.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ');
@@ -65,8 +73,8 @@ function cleanEmailText(text = '') {
   // 4. Strip any remaining HTML tags
   cleaned = cleaned.replace(/<[^>]+>/g, ' ');
 
-  // 5. Strip repetitive preheader spacer spam before entity decode (&nbsp;&zwnj; repeated)
-  cleaned = cleaned.replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ');
+  // 5. Strip repetitive preheader spacer spam (both decoded & raw entities, repeated spaces or newlines)
+  cleaned = cleaned.replace(/(?:&(?:nbsp|zwnj|zwj|shy);?|\bsp;|\b&nb\b|[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]|[\r\n\s]){4,}/gi, '\n\n');
 
   // 6. Decode HTML entities
   const entityMap = {
@@ -118,11 +126,14 @@ function cleanEmailText(text = '') {
     }
   });
 
-  // 7. Strip invisible zero-width unicode characters and padding
-  // \u200B (zero-width space), \u200C (zwnj), \u200D (zwj), \uFEFF (BOM), \u2007 (figure space), \u034F (combining grapheme joiner)
+  // 7. Strip trailing or stray orphan entity fragments like 'sp;' or '&nb'
+  cleaned = cleaned.replace(/&(?:nb|zwn|zw|amp|quot|apos|lt|gt)(?:\s|\.\.\.|$|\b)/gi, ' ');
+  cleaned = cleaned.replace(/\bsp;(?:\s|\.\.\.|$|\b)/gi, ' ');
+
+  // 8. Strip invisible zero-width unicode characters and padding
   cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ');
 
-  // 8. Collapse repeated whitespace and excessive blank lines
+  // 9. Collapse repeated whitespace and excessive blank lines
   cleaned = cleaned.replace(/[ \t]+/g, ' ');
   cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n');
   cleaned = cleaned.trim();

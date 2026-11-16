@@ -16,25 +16,33 @@ function formatEmailBody(content = '') {
   if (!content) return '';
   let str = String(content);
 
-  // Strip <style> and <script>
+  // 0. Reconnect HTML entities split across line breaks (e.g. '&nb\r\nsp;' -> '&nbsp;', '&zwn\nj;' -> '&zwnj;')
+  str = str.replace(/&([a-zA-Z0-9#]+)[\r\n\s]+([a-zA-Z0-9]+);/g, '&$1$2;');
+
+  // Handle broken '&nb' followed by 'sp;' or newline
+  str = str.replace(/&nb[\r\n\s]*sp;?/gi, ' ');
+  str = str.replace(/&zwn[\r\n\s]*j;?/gi, ' ');
+  str = str.replace(/&zw[\r\n\s]*j;?/gi, ' ');
+
+  // 1. Strip <style> and <script>
   str = str.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ');
   str = str.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ');
 
-  // Strip preheader spacer blocks
+  // 2. Strip preheader spacer blocks
   str = str.replace(/<[^>]+style\s*=\s*["'][^"']*(display\s*:\s*none|font-size\s*:\s*[01]px|max-height\s*:\s*0|opacity\s*:\s*0)[^"']*["'][^>]*>[\s\S]*?<\/[^>]+>/gi, ' ');
 
-  // Convert break tags
+  // 3. Convert break tags
   str = str.replace(/<br\s*\/?>/gi, '\n');
   str = str.replace(/<\/p>/gi, '\n\n');
   str = str.replace(/<\/div>/gi, '\n');
 
-  // Strip HTML tags if rendering in clean reader mode
+  // 4. Strip HTML tags if rendering in clean reader mode
   str = str.replace(/<[^>]+>/g, ' ');
 
-  // Decode repetitive &nbsp;&zwnj; and zero-width spacer spam
-  str = str.replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ');
+  // 5. Remove repetitive preheader spacer spam (both decoded & raw entities, repeated spaces or newlines)
+  str = str.replace(/(?:&(?:nbsp|zwnj|zwj|shy);?|\bsp;|\b&nb\b|[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]|[\r\n\s]){4,}/gi, '\n\n');
 
-  // Replace common HTML entities
+  // 6. Replace common HTML entities
   const map = {
     '&nbsp;': ' ',
     '&zwnj;': '',
@@ -59,21 +67,25 @@ function formatEmailBody(content = '') {
     str = str.replaceAll(new RegExp(k, 'gi'), v);
   }
 
-  // Handle numeric entities
+  // 7. Handle numeric entities
   str = str.replace(/&#(\d+);/g, (_, d) => {
     const code = parseInt(d, 10);
     if (code === 8204 || code === 8205 || code === 8203 || code === 65279) return '';
     return String.fromCharCode(code);
   });
 
-  // Remove zero-width & invisible spaces
+  // 8. Strip trailing or stray orphan entity fragments like 'sp;' or '&nb'
+  str = str.replace(/&(?:nb|zwn|zw|amp|quot|apos|lt|gt)(?:\s|\.\.\.|$|\b)/gi, ' ');
+  str = str.replace(/\bsp;(?:\s|\.\.\.|$|\b)/gi, ' ');
+
+  // 9. Remove zero-width & invisible spaces
   str = str.replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ');
 
-  // Collapse empty lines
+  // 10. Collapse empty lines
   str = str.replace(/[ \t]+/g, ' ');
   str = str.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
 
-  // Strip stub banner if present
+  // 11. Strip stub banner if present
   str = str.replace(/^To view this email message, open it in a program that understands HTML!?\s*/i, '');
 
   return str;
