@@ -12,7 +12,7 @@ export default function ClientLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Top Banner / Switcher */}
       <div className="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -31,19 +31,19 @@ export default function ClientLayout() {
         </div>
       </div>
 
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="MailPilot AI" className="w-10 h-10 object-contain rounded-xl flex-shrink-0" />
             <div>
-              <h1 className="font-bold text-slate-900 text-base leading-tight">MailPilot AI</h1>
-              <p className="text-xs text-slate-500">Your AI Email Assistant · Executive Portal</p>
+              <h1 className="font-bold text-slate-900 dark:text-white text-base leading-tight">MailPilot AI</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Your AI Email Assistant · Executive Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -56,7 +56,7 @@ export default function ClientLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
+      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4 text-center text-xs text-slate-400 dark:text-slate-500">
         MailPilot AI · Minimalist Executive Client Interface
       </footer>
     </div>

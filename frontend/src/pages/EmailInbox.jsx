@@ -102,14 +102,14 @@ export default function EmailInbox() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{total} email{total !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{total} email{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleSyncEmails}
             disabled={syncing || loading}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors disabled:opacity-50"
             title="Sync up to 50 real emails from connected Gmail"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
@@ -119,11 +119,11 @@ export default function EmailInbox() {
             <SearchBar value={search} onChange={setSearch} placeholder="Search emails..." />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+            className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
             <SlidersHorizontal className="w-4 h-4" />
           </button>
           <select value={sort} onChange={(e) => setSort(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            className="border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800">
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
             <option value="priority">Priority</option>
@@ -143,7 +143,7 @@ export default function EmailInbox() {
       )}
 
       {/* Email List */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
         {loading ? (
           <div className="py-20"><LoadingSpinner /></div>
         ) : emails.length === 0 ? (
@@ -155,11 +155,11 @@ export default function EmailInbox() {
             />
           ) : (
             <div className="py-16 px-6 text-center">
-              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Mail className="w-8 h-8 text-indigo-400" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Real Emails Synced Yet</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No Real Emails Synced Yet</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
                 Connect your Gmail account to start syncing real emails. MailPilot AI will automatically classify each email using Google Gemini AI.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -172,19 +172,16 @@ export default function EmailInbox() {
                 </a>
                 <Link
                   to="/settings"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium transition-colors"
                 >
                   <Sparkles className="w-4 h-4 text-indigo-500" />
                   Go to Settings
                 </Link>
               </div>
-              <p className="text-xs text-slate-400 mt-4">
-                Supports any Google Account · OAuth2 secured · Real-time Gemini AI classification
-              </p>
             </div>
           )
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
             {emails.map((email) => (
               <EmailCard
                 key={email._id}
@@ -206,30 +203,30 @@ export default function EmailInbox() {
 
       {/* Pagination & Limit Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between mt-4 text-sm gap-3">
-        <div className="flex items-center gap-2 text-slate-500">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
           <span className="text-xs">Show:</span>
           <select
             value={limit}
             onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 bg-white outline-none cursor-pointer hover:border-slate-300"
+            className="border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 outline-none cursor-pointer hover:border-slate-300 dark:hover:border-slate-600"
           >
             <option value={15}>15 per page</option>
             <option value={25}>25 per page</option>
             <option value={50}>50 per page</option>
             <option value={100}>100 per page</option>
           </select>
-          <span className="text-xs text-slate-400">({total} total)</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">({total} total)</span>
         </div>
         {totalPages > 1 && (
           <div className="flex items-center gap-3">
-            <p className="text-slate-500 text-xs">Page {page} of {totalPages}</p>
+            <p className="text-slate-500 dark:text-slate-400 text-xs">Page {page} of {totalPages}</p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
                 <ChevronLeft className="w-3.5 h-3.5" /> Previous
               </button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>

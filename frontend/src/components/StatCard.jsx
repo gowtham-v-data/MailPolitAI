@@ -19,8 +19,8 @@ export default function StatCard({ title, value, icon: Icon, iconColor = 'indigo
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border border-slate-100 p-5 shadow-sm hover:shadow-card-hover ${
-        onClick ? 'cursor-pointer hover:border-slate-200' : ''
+      className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-card-hover ${
+        onClick ? 'cursor-pointer hover:border-slate-200 dark:hover:border-slate-700' : ''
       }`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -34,10 +34,10 @@ export default function StatCard({ title, value, icon: Icon, iconColor = 'indigo
           </div>
         )}
       </div>
-      <div className="text-2xl font-bold text-slate-900 mb-1">{value}</div>
-      <p className="text-sm text-slate-500">{title}</p>
+      <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{value}</div>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
       {trendLabel && (
-        <p className="text-xs text-slate-400 mt-1">{trendLabel}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{trendLabel}</p>
       )}
     </div>
   );

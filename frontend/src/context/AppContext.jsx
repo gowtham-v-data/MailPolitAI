@@ -10,6 +10,44 @@ export function AppProvider({ children }) {
   const [clients, setClients] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setThemeState] = useState(() => {
+    return localStorage.getItem('mailpilot_theme') || 'light';
+  });
+
+  // Apply theme to document element
+  const applyTheme = useCallback((currentTheme) => {
+    const root = document.documentElement;
+    if (currentTheme === 'dark') {
+      root.classList.add('dark');
+    } else if (currentTheme === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    } else {
+      root.classList.remove('dark');
+    }
+  }, []);
+
+  const setTheme = useCallback((newTheme) => {
+    setThemeState(newTheme);
+    localStorage.setItem('mailpilot_theme', newTheme);
+    applyTheme(newTheme);
+  }, [applyTheme]);
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    // If system theme, listen to OS changes
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme('system');
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [theme, applyTheme]);
   const [emailCounts, setEmailCounts] = useState({
     total: 0,
     unread: 0,
@@ -110,6 +148,8 @@ export function AppProvider({ children }) {
     closeSidebar,
     emailCounts,
     fetchEmailCounts,
+    theme,
+    setTheme,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

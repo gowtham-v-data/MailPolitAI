@@ -5,16 +5,24 @@ import { useToast } from '../components/Toast';
 import * as api from '../api';
 import { stringToColor, getInitials } from '../utils/helpers';
 import {
-  User, Mail, Shield, Bell, RefreshCw, Sliders, Sparkles,
-  Database, Calendar, CheckCircle2, Key, ExternalLink, Zap
+  User, Mail, Bell, RefreshCw, Sliders, Sparkles,
+  Database, Calendar, Key, ExternalLink, Zap,
+  Sun, Moon, Monitor, Palette, Check, Trash2
 } from 'lucide-react';
 
 export default function Settings() {
   const { user } = useAuth();
-  const { selectedClient, fetchEmailCounts, fetchClients } = useApp();
+  const { selectedClient, fetchEmailCounts, fetchClients, theme, setTheme } = useApp();
   const toast = useToast();
+
+  const [activeTab, setActiveTab] = useState('appearance');
   const [aiSettings, setAiSettings] = useState({ autoClassify: true, confidenceThreshold: 75 });
-  const [notifications, setNotifications] = useState({ email: true, classification: true, delegation: true, digest: false });
+  const [notifications, setNotifications] = useState({
+    email: true,
+    classification: true,
+    delegation: true,
+    digest: false
+  });
   const [integrations, setIntegrations] = useState([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(true);
   const [syncingProvider, setSyncingProvider] = useState(null);
@@ -27,29 +35,12 @@ export default function Settings() {
   const [connectingCustom, setConnectingCustom] = useState(false);
   const [purging, setPurging] = useState(false);
 
-  const handlePurgeDummyData = async () => {
-    if (!window.confirm('Wipe all simulated dummy emails to operate in 100% Real Data Only mode?')) return;
-    setPurging(true);
-    try {
-      const res = await api.purgeDummyData();
-      toast.success(res.data?.message || 'Dummy data wiped! Operating in Real Data Only mode.');
-      fetchIntegrations();
-      if (fetchClients) fetchClients();
-      if (fetchEmailCounts) fetchEmailCounts();
-    } catch (err) {
-      toast.error('Failed to purge dummy data');
-    } finally {
-      setPurging(false);
-    }
-  };
-
   useEffect(() => {
     fetchIntegrations();
 
-    // Check for OAuth callback redirects
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') === 'google_success') {
-      toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓ Live emails synchronized!`);
+      toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓`);
       window.history.replaceState({}, document.title, window.location.pathname);
       fetchIntegrations();
       if (fetchClients) fetchClients();
@@ -60,30 +51,6 @@ export default function Settings() {
     }
   }, [selectedClient]);
 
-  const handleConnectCustomAccount = async (e) => {
-    e.preventDefault();
-    if (!customEmail.trim()) return;
-    setConnectingCustom(true);
-    try {
-      const res = await api.connectAccount({
-        email: customEmail.trim(),
-        displayName: customName.trim() || customEmail.split('@')[0],
-        provider: customProvider,
-        clientId: (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined
-      });
-      toast.success(`Account connected: ${customEmail} ✓`);
-      setCustomEmail('');
-      setCustomName('');
-      fetchIntegrations();
-      if (fetchClients) fetchClients();
-      if (fetchEmailCounts) fetchEmailCounts();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to connect email account');
-    } finally {
-      setConnectingCustom(false);
-    }
-  };
-
   const fetchIntegrations = async () => {
     setLoadingIntegrations(true);
     try {
@@ -93,7 +60,7 @@ export default function Settings() {
         setIntegrations(res.data.integrations);
       }
     } catch (err) {
-      console.warn('Could not load integrations status:', err);
+      console.warn('Could not load integrations:', err);
     } finally {
       setLoadingIntegrations(false);
     }
@@ -104,8 +71,9 @@ export default function Settings() {
     try {
       const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
       const res = await api.syncIntegrationProvider(providerId, clientId);
-      toast.success(res.data?.message || `${providerId} synchronized successfully`);
+      toast.success(res.data?.message || `${providerId} synchronized`);
       fetchIntegrations();
+      if (fetchEmailCounts) fetchEmailCounts();
     } catch {
       toast.error('Sync failed. Please try again.');
     } finally {
@@ -118,408 +86,547 @@ export default function Settings() {
     setSavingKey(true);
     try {
       await api.updateAIConfig({ apiKey: geminiKeyInput, model: geminiModel });
-      toast.success('Google Gemini API configuration updated!');
+      toast.success('Gemini configuration saved');
       setGeminiKeyInput('');
       fetchIntegrations();
     } catch {
-      toast.error('Failed to update Gemini API settings');
+      toast.error('Failed to update Gemini settings');
     } finally {
       setSavingKey(false);
     }
   };
 
+  const handleConnectCustomAccount = async (e) => {
+    e.preventDefault();
+    if (!customEmail.trim()) return;
+    setConnectingCustom(true);
+    try {
+      await api.connectAccount({
+        email: customEmail.trim(),
+        displayName: customName.trim() || customEmail.split('@')[0],
+        provider: customProvider,
+        clientId: (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined
+      });
+      toast.success(`Connected: ${customEmail}`);
+      setCustomEmail('');
+      setCustomName('');
+      fetchIntegrations();
+      if (fetchClients) fetchClients();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to connect email');
+    } finally {
+      setConnectingCustom(false);
+    }
+  };
+
+  const handlePurgeDummyData = async () => {
+    if (!window.confirm('Wipe simulated emails to run in 100% Real Data mode?')) return;
+    setPurging(true);
+    try {
+      const res = await api.purgeDummyData();
+      toast.success(res.data?.message || 'Operating in Real Data mode');
+      fetchIntegrations();
+      if (fetchClients) fetchClients();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch {
+      toast.error('Failed to wipe simulated data');
+    } finally {
+      setPurging(false);
+    }
+  };
+
   const avatarColor = stringToColor(user?.name || '');
 
+  const tabs = [
+    { id: 'appearance', label: 'Appearance & Profile', icon: Palette },
+    { id: 'integrations', label: 'Integrations', icon: Zap },
+    { id: 'ai', label: 'AI Engine', icon: Sparkles },
+    { id: 'accounts', label: 'Connected Inboxes', icon: Mail },
+  ];
+
   return (
-    <div className="p-4 lg:p-6 max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Platform Settings & Integrations</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Manage your AI models, cloud database, email providers, and connected third-party APIs.
-        </p>
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Preferences, integrations, and AI controls</p>
+        </div>
+        <button
+          onClick={fetchIntegrations}
+          disabled={loadingIntegrations}
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loadingIntegrations ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
-      {/* ─── 1. Third-Party Integrations Grid ─── */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-base font-bold text-slate-900">Third-Party Integrations</h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              5 core services powering AI, email sync, calendars, and cloud persistence
-            </p>
-          </div>
-          <button
-            onClick={fetchIntegrations}
-            disabled={loadingIntegrations}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loadingIntegrations ? 'animate-spin' : ''}`} />
-            Refresh Status
-          </button>
-        </div>
+      {/* Modern Segmented Navigation Tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto no-scrollbar">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                isActive
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 1. Google Gemini API */}
-          <div className="p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 via-white to-violet-50/30 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                    ✦
+      {/* ──────────────── TAB 1: APPEARANCE & PROFILE ──────────────── */}
+      {activeTab === 'appearance' && (
+        <div className="space-y-5">
+          {/* Theme Selector (Dark Mode) */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              Appearance & Theme
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Choose your preferred workspace interface style</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Light Mode */}
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`p-3.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                  theme === 'light'
+                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                    <Sun className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Google Gemini API</h3>
-                    <p className="text-[11px] text-indigo-600 font-medium">gemini-2.5-flash / gemini-1.5-flash</p>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Light</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Clean & Bright</span>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  ● Active
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2">
-                Powering automatic 4-tier email classification, executive thread summaries, and tone-adaptive reply drafting.
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-indigo-100/60 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-medium">Status: Live Engine</span>
+                {theme === 'light' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+              </button>
+
+              {/* Dark Mode */}
               <button
-                onClick={() => document.getElementById('gemini-key-input')?.focus()}
-                className="text-xs text-indigo-600 font-semibold hover:text-indigo-700 flex items-center gap-1"
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`p-3.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                  theme === 'dark'
+                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
               >
-                Configure Key <Key className="w-3 h-3" />
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-slate-800 text-indigo-400 flex items-center justify-center font-bold">
+                    <Moon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Dark</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Deep & Focused</span>
+                  </div>
+                </div>
+                {theme === 'dark' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+              </button>
+
+              {/* System Sync */}
+              <button
+                type="button"
+                onClick={() => setTheme('system')}
+                className={`p-3.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                  theme === 'system'
+                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold">
+                    <Monitor className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">System</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Match OS</span>
+                  </div>
+                </div>
+                {theme === 'system' && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
               </button>
             </div>
           </div>
 
-          {/* 2. Gmail API */}
-          <div className="p-4 rounded-xl border border-slate-200/90 bg-white flex flex-col justify-between hover:border-slate-300 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📧</span>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Gmail API</h3>
-                    <p className="text-[11px] text-slate-500 font-medium">Google Workspace OAuth2</p>
-                  </div>
+          {/* User Profile */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-slate-400" />
+              Account Profile
+            </h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-xs"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  {getInitials(user?.name || '')}
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  ● Connected
-                </span>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{user?.name || 'Executive User'}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email || ''}</p>
+                </div>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2">
-                Real-time email synchronization and thread ingestion for client Gmail accounts with read/send scopes.
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[140px]" title={integrations.find(i => i.id === 'gmail-api')?.email || 'gowthamkrishna3107@gmail.com'}>
-                {integrations.find(i => i.id === 'gmail-api')?.email || 'gowthamkrishna3107@gmail.com'}
+              <span className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-200/60 dark:border-indigo-800 uppercase">
+                {user?.role || 'Assistant'}
               </span>
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
-                  className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition-colors"
-                  title="Authorize with your own Google Account via OAuth2"
-                >
-                  <ExternalLink className="w-3 h-3" /> Connect Google
-                </a>
+            </div>
+          </div>
+
+          {/* Notifications */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-slate-400" />
+              Notification Channels
+            </h2>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[
+                { key: 'email', label: 'New Email Alerts' },
+                { key: 'classification', label: 'AI Classification Updates' },
+                { key: 'delegation', label: 'Client Delegations' },
+                { key: 'digest', label: 'Daily Executive Briefing' },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between py-2.5">
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                      notifications[key] ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-all ${
+                        notifications[key] ? 'left-4.5' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── TAB 2: INTEGRATIONS ──────────────── */}
+      {activeTab === 'integrations' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {/* 1. Gmail Workspace */}
+            <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📧</span>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Gmail Workspace</h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">OAuth2 Live Sync</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Connected
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono truncate max-w-[150px]">
+                  {integrations.find((i) => i.id === 'gmail-api')?.email || 'gowthamkrishna3107@gmail.com'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`http://localhost:5000/api/accounts/google/auth?clientId=${
+                      selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''
+                    }`}
+                    className="px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg flex items-center gap-1 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" /> Connect
+                  </a>
+                  <button
+                    onClick={() => handleSyncProvider('gmail')}
+                    disabled={syncingProvider === 'gmail'}
+                    className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${syncingProvider === 'gmail' ? 'animate-spin' : ''}`} />
+                    Sync
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Microsoft Outlook */}
+            <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📬</span>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Microsoft Outlook</h3>
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400">Microsoft Graph</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Connected
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                  {integrations.find((i) => i.id === 'ms-graph')?.email || 'corporate-m365'}
+                </span>
                 <button
-                  onClick={() => handleSyncProvider('gmail')}
-                  disabled={syncingProvider === 'gmail'}
-                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  onClick={() => handleSyncProvider('outlook')}
+                  disabled={syncingProvider === 'outlook'}
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3 h-3 ${syncingProvider === 'gmail' ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 ${syncingProvider === 'outlook' ? 'animate-spin' : ''}`} />
                   Sync
                 </button>
               </div>
             </div>
-            <div className="mt-2 text-[10px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 flex items-center justify-between">
-              <span>Supports <strong>any Google Account</strong>. In Google Cloud Console, click <strong>"Publish App"</strong> to allow any public account without test user limits.</span>
-            </div>
-          </div>
 
-          {/* 3. Microsoft Graph API */}
-          <div className="p-4 rounded-xl border border-slate-200/90 bg-white flex flex-col justify-between hover:border-slate-300 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📬</span>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Microsoft Graph API</h3>
-                    <p className="text-[11px] text-blue-600 font-medium">Outlook & Microsoft 365</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  ● Connected
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2">
-                Outlook enterprise mailbox integration via Microsoft Entra ID with automated folder watching.
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[160px]">
-                {integrations.find(i => i.id === 'ms-graph')?.email || 'Not connected'}
-              </span>
-              <button
-                onClick={() => handleSyncProvider('outlook')}
-                disabled={syncingProvider === 'outlook'}
-                className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${syncingProvider === 'outlook' ? 'animate-spin' : ''}`} />
-                Sync Now
-              </button>
-            </div>
-          </div>
-
-          {/* 4. Google Calendar API */}
-          <div className="p-4 rounded-xl border border-slate-200/90 bg-white flex flex-col justify-between hover:border-slate-300 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Google Calendar API</h3>
-                    <p className="text-[11px] text-slate-500 font-medium">Event & Appointment Sync</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  ● Synchronized
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2">
-                Automatically parses meeting requests, dates, and locations from email threads and schedules them.
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-medium">
-                {integrations.find(i => i.id === 'google-calendar')?.meetingCount ?? 0} Upcoming Meetings
-              </span>
-              <button
-                onClick={() => handleSyncProvider('google-calendar')}
-                disabled={syncingProvider === 'google-calendar'}
-                className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${syncingProvider === 'google-calendar' ? 'animate-spin' : ''}`} />
-                Sync Calendar
-              </button>
-            </div>
-          </div>
-
-          {/* 5. MongoDB Atlas */}
-          <div className="md:col-span-2 p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs flex-shrink-0">
-                <Database className="w-5 h-5" />
-              </div>
+            {/* 3. Google Calendar */}
+            <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-900">MongoDB Atlas Cloud Database</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    🟢 Live Cloud Cluster
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Google Calendar</h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Appointment Ingestion</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Synced
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 mt-1">
-                  Connected to: <code className="bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-900 font-mono text-[11px]">mailpilotcluster.og38j3g.mongodb.net</code>
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Database: <code className="font-semibold text-slate-700">mailpilot</code> · Cluster: AWS us-east-1 · Data persists permanently across restarts.
-                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                  {integrations.find((i) => i.id === 'google-calendar')?.meetingCount ?? 0} Meetings
+                </span>
+                <button
+                  onClick={() => handleSyncProvider('google-calendar')}
+                  disabled={syncingProvider === 'google-calendar'}
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingProvider === 'google-calendar' ? 'animate-spin' : ''}`} />
+                  Sync
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 self-start sm:self-center">
-              <span className="px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 shadow-2xs">
-                ✓ {integrations.find(i => i.id === 'mongodb-atlas')?.emailCount ?? 0} Emails Stored
-              </span>
+
+            {/* 4. MongoDB Atlas Cloud */}
+            <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <Database className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">MongoDB Atlas</h3>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">mailpilotcluster</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Live Cluster
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                  AWS us-east-1
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded text-[11px] font-semibold">
+                  {integrations.find((i) => i.id === 'mongodb-atlas')?.emailCount ?? 0} Stored
+                </span>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Gemini API Key Configuration Box */}
-        <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
-          <form onSubmit={handleSaveGeminiKey} className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <label htmlFor="gemini-key-input" className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-indigo-600" />
-                Custom Google Gemini API Key (Optional)
-              </label>
+      {/* ──────────────── TAB 3: AI ENGINE ──────────────── */}
+      {activeTab === 'ai' && (
+        <div className="space-y-4">
+          {/* Gemini API Key Box */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-500">Model:</span>
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                  ✦
+                </div>
+                <div>
+                  <h2 className="text-xs font-bold text-slate-900 dark:text-white">Google Gemini Engine</h2>
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Active Classifier & Summarizer</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                Active
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <input
+                    type="password"
+                    value={geminiKeyInput}
+                    onChange={(e) => setGeminiKeyInput(e.target.value)}
+                    placeholder="Custom Gemini API Key (optional)"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
                 <select
                   value={geminiModel}
                   onChange={(e) => setGeminiModel(e.target.value)}
-                  className="text-xs bg-white border border-slate-300 rounded px-2 py-1 outline-none"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
                 >
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & Accurate)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash</option>
                   <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                   <option value="gemini-1.5-pro">gemini-1.5-pro</option>
                 </select>
+                <button
+                  type="submit"
+                  disabled={savingKey || !geminiKeyInput.trim()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+                >
+                  {savingKey ? 'Saving...' : 'Apply'}
+                </button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <input
-                id="gemini-key-input"
-                type="password"
-                value={geminiKeyInput}
-                onChange={(e) => setGeminiKeyInput(e.target.value)}
-                placeholder="Paste AI Studio API Key (AIzaSy...)"
-                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-              />
+            </form>
+          </div>
+
+          {/* AI Controls */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-4">
+            <h2 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-slate-400" />
+              Classification Rules
+            </h2>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                Automatic Responsibility Assignment
+              </span>
               <button
-                type="submit"
-                disabled={savingKey || !geminiKeyInput.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+                type="button"
+                onClick={() => setAiSettings((prev) => ({ ...prev, autoClassify: !prev.autoClassify }))}
+                className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                  aiSettings.autoClassify ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+                }`}
               >
-                {savingKey ? 'Saving...' : 'Apply Key'}
+                <div
+                  className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-all ${
+                    aiSettings.autoClassify ? 'left-4.5' : 'left-1'
+                  }`}
+                />
               </button>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Without an explicit key, MailPilot AI automatically operates with its high-accuracy deterministic neural classifier with 100% functionality.
-            </p>
-          </form>
-        </div>
 
-        {/* Connect Any Email Account Form */}
-        <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
-          <form onSubmit={handleConnectCustomAccount} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                Connect Any Email Account (Direct Registration)
-              </h3>
-              <span className="text-[11px] text-slate-500">Add any client or executive email</span>
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Review Threshold
+                </span>
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                  {aiSettings.confidenceThreshold}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={95}
+                value={aiSettings.confidenceThreshold}
+                onChange={(e) =>
+                  setAiSettings((prev) => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))
+                }
+                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-600"
+              />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── TAB 4: CONNECTED INBOXES ──────────────── */}
+      {activeTab === 'accounts' && (
+        <div className="space-y-4">
+          {/* Direct Email Connector */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs">
+            <h2 className="text-xs font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              Register Email Account
+            </h2>
+            <form onSubmit={handleConnectCustomAccount} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
               <input
                 type="email"
                 required
                 value={customEmail}
                 onChange={(e) => setCustomEmail(e.target.value)}
-                placeholder="Enter email (e.g. user@gmail.com)"
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Email address"
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
               />
               <input
                 type="text"
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                placeholder="Display Name (e.g. Alex Morgan)"
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Owner / Client Name"
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
               />
-              <div className="flex gap-2">
-                <select
-                  value={customProvider}
-                  onChange={(e) => setCustomProvider(e.target.value)}
-                  className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 outline-none"
-                >
-                  <option value="gmail">Gmail</option>
-                  <option value="outlook">Outlook / M365</option>
-                  <option value="custom">Enterprise IMAP</option>
-                </select>
-                <button
-                  type="submit"
-                  disabled={connectingCustom || !customEmail.trim()}
-                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 whitespace-nowrap"
-                >
-                  {connectingCustom ? 'Connecting...' : 'Connect'}
-                </button>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Instantly connects any email address to MailPilot AI, registers a client inbox, and activates AI classification.
-            </p>
-          </form>
-        </div>
-      </div>
-
-      {/* ─── 2. Profile Details ─── */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-5">
-        <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <User className="w-4 h-4 text-slate-400" /> Profile
-        </h2>
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-xs" style={{ backgroundColor: avatarColor }}>
-            {getInitials(user?.name || '')}
+              <select
+                value={customProvider}
+                onChange={(e) => setCustomProvider(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
+              >
+                <option value="gmail">Gmail</option>
+                <option value="outlook">Outlook / M365</option>
+                <option value="custom">Enterprise IMAP</option>
+              </select>
+              <button
+                type="submit"
+                disabled={connectingCustom || !customEmail.trim()}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+              >
+                {connectingCustom ? 'Connecting...' : 'Connect'}
+              </button>
+            </form>
           </div>
-          <div>
-            <p className="font-bold text-slate-900 text-base">{user?.name || 'User'}</p>
-            <p className="text-sm text-slate-500">{user?.email || ''}</p>
-            <span className="inline-flex px-2 py-0.5 text-[11px] bg-indigo-50 text-indigo-700 rounded-full font-semibold mt-1 uppercase tracking-wide">
-              {user?.role || 'assistant'}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* ─── 3. AI Classifier Settings ─── */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-5">
-        <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Sliders className="w-4 h-4 text-slate-400" /> AI Classification Controls
-        </h2>
-        <div className="space-y-4">
-          <label className="flex items-center justify-between">
+          {/* Database & Real Data Management */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-800">Automatic Responsibility Assignment</p>
-              <p className="text-xs text-slate-500">AI automatically classifies who should respond upon receiving any email</p>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Real Data Mode</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Wipe simulated mock data</p>
             </div>
             <button
-              onClick={() => setAiSettings(prev => ({ ...prev, autoClassify: !prev.autoClassify }))}
-              className={`w-10 h-6 rounded-full transition-colors relative ${aiSettings.autoClassify ? 'bg-indigo-600' : 'bg-slate-200'}`}
+              onClick={handlePurgeDummyData}
+              disabled={purging}
+              className="px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg border border-rose-200 dark:border-rose-900 flex items-center gap-1.5 transition-colors disabled:opacity-50"
             >
-              <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${aiSettings.autoClassify ? 'left-5' : 'left-1'}`} />
+              <Trash2 className="w-3.5 h-3.5" />
+              {purging ? 'Wiping...' : 'Wipe Mock Data'}
             </button>
-          </label>
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-slate-800">Confidence Threshold for Review</p>
-              <span className="text-sm font-bold text-indigo-600">{aiSettings.confidenceThreshold}%</span>
-            </div>
-            <input
-              type="range"
-              min={50}
-              max={95}
-              value={aiSettings.confidenceThreshold}
-              onChange={(e) => setAiSettings(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))}
-              className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer"
-            />
-            <p className="text-xs text-slate-400 mt-1">
-              Conversations classified with confidence below {aiSettings.confidenceThreshold}% are automatically marked as <strong>NEEDS_REVIEW</strong> for personal assistant verification.
-            </p>
           </div>
         </div>
-      </div>
-
-      {/* ─── 4. Notifications ─── */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-5">
-        <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Bell className="w-4 h-4 text-slate-400" /> Notification Channels
-        </h2>
-        <div className="space-y-3">
-          {[
-            { key: 'email', label: 'New Email Alerts', desc: 'Real-time alert when new email conversations are synchronized' },
-            { key: 'classification', label: 'AI Classification Updates', desc: 'Notify assistant when AI assigns responsibility' },
-            { key: 'delegation', label: 'Client Delegations', desc: 'High priority alert when client delegates an email to assistant' },
-            { key: 'digest', label: 'Morning Executive Briefing', desc: 'Daily summary of unread and action-required conversations' },
-          ].map(({ key, label, desc }) => (
-            <label key={key} className="flex items-center justify-between py-1.5 cursor-pointer">
-              <div>
-                <p className="text-sm font-medium text-slate-800">{label}</p>
-                <p className="text-xs text-slate-500">{desc}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key] }))}
-                className={`w-10 h-6 rounded-full transition-colors relative flex-shrink-0 ${notifications[key] ? 'bg-indigo-600' : 'bg-slate-200'}`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${notifications[key] ? 'left-5' : 'left-1'}`} />
-              </button>
-            </label>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

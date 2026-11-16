@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Meeting = require('../models/Meeting');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
@@ -10,7 +11,9 @@ router.get('/', async (req, res) => {
   try {
     const { clientId, status } = req.query;
     const filter = {};
-    if (clientId) filter.clientId = clientId;
+    if (clientId && clientId !== 'all' && mongoose.Types.ObjectId.isValid(clientId)) {
+      filter.clientId = clientId;
+    }
     if (status) filter.status = status;
     const meetings = await Meeting.find(filter).sort({ date: 1 });
     res.json({ success: true, meetings });

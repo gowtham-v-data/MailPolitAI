@@ -44,8 +44,10 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
   return (
     <div
       onClick={handleClick}
-      className={`group flex items-start gap-3 px-4 py-3.5 cursor-pointer border-b border-slate-50 hover:bg-slate-50/80 ${
-        isUnread ? 'bg-white border-l-2 border-l-indigo-500' : 'bg-white border-l-2 border-l-transparent'
+      className={`group flex items-start gap-3 px-4 py-3.5 cursor-pointer border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors ${
+        isUnread
+          ? 'bg-white dark:bg-slate-900 border-l-2 border-l-indigo-500'
+          : 'bg-white dark:bg-slate-900/60 border-l-2 border-l-transparent'
       }`}
     >
       {/* Avatar */}
@@ -59,7 +61,7 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className={`text-sm ${isUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'} truncate`}>
+          <span className={`text-sm ${isUnread ? 'font-semibold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'} truncate`}>
             {senderName}
           </span>
           <PriorityBadge priority={email.priority} />
@@ -67,11 +69,11 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
             <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
           )}
         </div>
-        <p className={`text-sm ${isUnread ? 'font-semibold text-slate-900' : 'text-slate-800'} line-clamp-1`}>
+        <p className={`text-sm ${isUnread ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-800 dark:text-slate-300'} line-clamp-1`}>
           {email.subject}
         </p>
         {!compact && (
-          <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
             {cleanPreview(email.preview || email.snippet || email.body?.substring(0, 100))}
           </p>
         )}
@@ -79,7 +81,7 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
 
       {/* Right side */}
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-        <span className="text-xs text-slate-400 whitespace-nowrap">
+        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
           {formatDate(email.date || email.receivedAt || email.createdAt)}
         </span>
         <div className="flex items-center gap-2">
@@ -87,7 +89,7 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
           <button
             onClick={handleImportant}
             className={`p-0.5 rounded opacity-0 group-hover:opacity-100 ${
-              email.isImportant ? 'opacity-100 text-amber-400' : 'text-slate-300 hover:text-amber-400'
+              email.isImportant ? 'opacity-100 text-amber-400' : 'text-slate-300 dark:text-slate-600 hover:text-amber-400'
             }`}
           >
             <Star className="w-4 h-4" fill={email.isImportant ? 'currentColor' : 'none'} />
