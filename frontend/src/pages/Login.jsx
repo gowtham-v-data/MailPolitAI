@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Plane, Mail, Lock, ArrowRight, Sparkles, Shield, Zap, User, Bot } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -48,23 +48,9 @@ export default function Login() {
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             AI-Powered Email<br />Management
           </h1>
-          <p className="text-indigo-100 text-lg mb-12 max-w-md">
+          <p className="text-indigo-100 text-lg max-w-md">
             Intelligent email classification, automatic response assignment, and AI-powered assistance for personal assistants.
           </p>
-          <div className="space-y-5">
-            {[
-              { icon: Sparkles, text: 'AI automatically classifies who should reply' },
-              { icon: Shield, text: 'Separate dashboards for assistants & clients' },
-              { icon: Zap, text: 'Draft replies and summarize threads instantly' },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3 text-indigo-100">
-                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-                <span>{text}</span>
-              </div>
-            ))}
-          </div>
         </div>
         <p className="text-indigo-200 text-sm relative z-10">© 2024 MailPilot AI. All rights reserved.</p>
       </div>
@@ -82,33 +68,6 @@ export default function Login() {
 
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>
           <p className="text-slate-500 mb-6">Sign in to your account to continue</p>
-
-          {/* Quick Demo Switcher Buttons */}
-          <div className="mb-6 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100">
-            <p className="text-xs font-semibold text-indigo-950 uppercase tracking-wide mb-2.5">
-              ⚡ Quick Demo 1-Click Access
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleLoginWithCredentials('sarah@mailpilot.ai', 'password123')}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-white text-indigo-700 rounded-lg text-xs font-semibold shadow-xs border border-indigo-200 hover:bg-indigo-50 transition-colors"
-              >
-                <Bot className="w-3.5 h-3.5 text-indigo-600" />
-                Assistant View
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLoginWithCredentials('james@techvision.com', 'password123')}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow-xs hover:bg-indigo-700 transition-colors"
-              >
-                <User className="w-3.5 h-3.5" />
-                Executive Client
-              </button>
-            </div>
-          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
