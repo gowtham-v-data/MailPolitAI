@@ -4,6 +4,25 @@ const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
+// GET /api/auth/google - Initiate Google Sign-In / Sign-Up
+router.get('/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/accounts/google/callback';
+  const mode = req.query.mode || 'login';
+  const role = req.query.role || 'assistant';
+  const state = `auth_${mode}_${role}`;
+  const scopes = [
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/calendar.events'
+  ].join(' ');
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
+
+  res.redirect(authUrl);
+});
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {

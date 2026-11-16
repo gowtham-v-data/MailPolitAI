@@ -30,9 +30,15 @@ router.get('/google/callback', async (req, res) => {
   try {
     const { code, state, error } = req.query;
     if (error) {
+      if (state && state.startsWith('auth_')) {
+        return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(error)}`);
+      }
       return res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(error)}`);
     }
     if (!code) {
+      if (state && state.startsWith('auth_')) {
+        return res.redirect('http://localhost:5173/login?error=No+authorization+code+provided');
+      }
       return res.redirect('http://localhost:5173/settings?oauth=error&message=No+code+provided');
     }
 
@@ -52,6 +58,9 @@ router.get('/google/callback', async (req, res) => {
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok || !tokenData.access_token) {
       console.error('Failed to exchange code for tokens:', tokenData);
+      if (state && state.startsWith('auth_')) {
+        return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(tokenData.error_description || 'Google authentication failed')}`);
+      }
       return res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(tokenData.error_description || 'Token exchange failed')}`);
     }
 
@@ -62,6 +71,99 @@ router.get('/google/callback', async (req, res) => {
     const userInfo = await userinfoResponse.json();
     const userEmail = (userInfo.email || '').toLowerCase();
     const displayName = userInfo.name || userEmail;
+
+    // ─── AUTH FLOW (Sign in / Sign up with Google) ───
+    if (state && state.startsWith('auth_')) {
+      const parts = state.split('_');
+      const mode = parts[1] || 'login';
+      const role = parts[2] || 'assistant';
+
+      const User = require('../models/User');
+      const jwt = require('jsonwebtoken');
+
+      let user = await User.findOne({ email: userEmail });
+      if (!user) {
+        // Automatically create user account with verified Google profile
+        const randomPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
+        user = await User.create({
+          name: displayName || userEmail.split('@')[0],
+          email: userEmail,
+          password: randomPassword,
+          role: role,
+          avatar: userInfo.picture || ''
+        });
+      } else if (userInfo.picture && !user.avatar) {
+        user.avatar = userInfo.picture;
+        await user.save();
+      }
+
+      const token = jwt.sign(
+        { id: user._id, role: user.role },
+        process.env.JWT_SECRET || 'mailpilot-secret-key-change-in-production',
+        { expiresIn: '7d' }
+      );
+
+      // Also ensure Client and EmailAccount are synced so Gmail emails are available
+      try {
+        let client = await Client.findOne({ email: userEmail });
+        if (!client) {
+          const companyDomain = userEmail.includes('@') ? userEmail.split('@')[1].split('.')[0].toUpperCase() : 'Google';
+          client = await Client.create({
+            name: displayName || userEmail.split('@')[0],
+            email: userEmail,
+            company: `${companyDomain} Workspace`,
+            phone: '',
+            assistantId: user._id,
+            status: 'active',
+            connectedAccounts: [{
+              provider: 'gmail',
+              email: userEmail,
+              status: 'connected',
+              lastSync: new Date(),
+              connectedAt: new Date()
+            }]
+          });
+        }
+
+        let account = await EmailAccount.findOne({ clientId: client._id, provider: 'gmail', email: userEmail });
+        if (account) {
+          account.accessToken = tokenData.access_token || '';
+          if (tokenData.refresh_token) account.refreshToken = tokenData.refresh_token;
+          account.status = 'connected';
+          account.lastSync = new Date();
+          await account.save();
+        } else {
+          account = await EmailAccount.create({
+            clientId: client._id,
+            provider: 'gmail',
+            email: userEmail,
+            displayName,
+            status: 'connected',
+            accessToken: tokenData.access_token || '',
+            refreshToken: tokenData.refresh_token || '',
+            lastSync: new Date(),
+            connectedAt: new Date()
+          });
+        }
+
+        // Trigger real Gmail sync in background
+        const { syncRealGmailEmails } = require('../services/gmailSyncService');
+        syncRealGmailEmails(account, { maxResults: 50 }).catch(e => console.warn('[Google Auth Sync] Notice:', e.message));
+      } catch (clientErr) {
+        console.warn('[Google Auth Sync Setup]', clientErr.message);
+      }
+
+      const targetPath = user.role === 'client' ? '/client' : '/';
+      const redirectUrl = `http://localhost:5173/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }))}&redirect=${encodeURIComponent(targetPath)}`;
+
+      return res.redirect(redirectUrl);
+    }
 
     // Determine or dynamically create client for ANY email that connects
     const mongoose = require('mongoose');

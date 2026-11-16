@@ -74,6 +74,13 @@ export function AuthProvider({ children }) {
     navigate('/login');
   }, [navigate]);
 
+  const loginWithToken = useCallback((newToken, newUser) => {
+    localStorage.setItem('mailpilot_token', newToken);
+    setToken(newToken);
+    setUser(newUser);
+    return { success: true, user: newUser };
+  }, []);
+
   const switchToClientView = useCallback(async () => {
     try {
       const res = await api.login({ email: 'james@techvision.com', password: 'password123' });
@@ -104,6 +111,7 @@ export function AuthProvider({ children }) {
     loading,
     login,
     register,
+    loginWithToken,
     logout,
     switchToClientView,
     switchToAssistantView,

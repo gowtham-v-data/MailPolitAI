@@ -16,6 +16,7 @@ import Clients from './pages/Clients';
 import Meetings from './pages/Meetings';
 import Settings from './pages/Settings';
 import ClientDashboard from './pages/ClientDashboard';
+import AuthCallback from './pages/AuthCallback';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -29,6 +30,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/client" element={<ClientLayout />}>
         <Route index element={<ClientDashboard />} />
