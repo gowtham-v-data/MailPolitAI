@@ -52,22 +52,30 @@ export default function Login() {
             Intelligent email classification, automatic response assignment, and AI-powered assistance for personal assistants.
           </p>
 
-          <div className="mt-8 space-y-3.5 max-w-md">
+          <div className="mt-8 space-y-3.5 max-w-lg">
             <div className="flex items-start gap-3 text-indigo-100 text-sm font-medium">
-              <span className="text-indigo-300 font-mono font-bold select-none text-base leading-none mt-0.5">-&gt;</span>
-              <span>Autonomous 4-tier email classification and priority triage</span>
+              <span className="text-indigo-300 font-mono font-bold select-none text-sm flex-shrink-0 whitespace-nowrap leading-snug">
+                -&gt;
+              </span>
+              <span className="flex-1 leading-snug">Autonomous 4-tier email classification and priority triage</span>
             </div>
             <div className="flex items-start gap-3 text-indigo-100 text-sm font-medium">
-              <span className="text-indigo-300 font-mono font-bold select-none text-base leading-none mt-0.5">-&gt;</span>
-              <span>Tone-adaptive executive draft generation powered by Gemini AI</span>
+              <span className="text-indigo-300 font-mono font-bold select-none text-sm flex-shrink-0 whitespace-nowrap leading-snug">
+                -&gt;
+              </span>
+              <span className="flex-1 leading-snug">Tone-adaptive executive draft generation powered by Gemini AI</span>
             </div>
             <div className="flex items-start gap-3 text-indigo-100 text-sm font-medium">
-              <span className="text-indigo-300 font-mono font-bold select-none text-base leading-none mt-0.5">-&gt;</span>
-              <span>Live two-way synchronization with Gmail and Microsoft 365</span>
+              <span className="text-indigo-300 font-mono font-bold select-none text-sm flex-shrink-0 whitespace-nowrap leading-snug">
+                -&gt;
+              </span>
+              <span className="flex-1 leading-snug">Live two-way synchronization with Gmail and Microsoft 365</span>
             </div>
             <div className="flex items-start gap-3 text-indigo-100 text-sm font-medium">
-              <span className="text-indigo-300 font-mono font-bold select-none text-base leading-none mt-0.5">-&gt;</span>
-              <span>Dedicated portal separating assistant workflows from client approvals</span>
+              <span className="text-indigo-300 font-mono font-bold select-none text-sm flex-shrink-0 whitespace-nowrap leading-snug">
+                -&gt;
+              </span>
+              <span className="flex-1 leading-snug">Dedicated portal separating assistant workflows from client approvals</span>
             </div>
           </div>
         </div>
