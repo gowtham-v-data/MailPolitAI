@@ -63,17 +63,49 @@ router.get('/google/callback', async (req, res) => {
     const userEmail = (userInfo.email || '').toLowerCase();
     const displayName = userInfo.name || userEmail;
 
-    // Determine target client
+    // Determine or dynamically create client for ANY email that connects
     const mongoose = require('mongoose');
     let targetClientId = state;
-    if (!targetClientId || targetClientId === 'all' || !mongoose.Types.ObjectId.isValid(targetClientId)) {
-      const defaultClient = await Client.findOne({ status: 'active' });
-      if (defaultClient) targetClientId = defaultClient._id;
+    let client = null;
+
+    // 1. First check if a client with this exact email already exists
+    client = await Client.findOne({ email: userEmail });
+
+    // 2. If not, check if state provided a valid existing client ID
+    if (!client && targetClientId && targetClientId !== 'all' && mongoose.Types.ObjectId.isValid(targetClientId)) {
+      client = await Client.findById(targetClientId);
     }
 
+    // 3. If still no client, dynamically create a new Client record for this email
+    if (!client) {
+      const User = require('../models/User');
+      const assistantUser = await User.findOne({ role: 'assistant' });
+      const companyDomain = userEmail.includes('@') ? userEmail.split('@')[1].split('.')[0].toUpperCase() : 'Google';
+      client = await Client.create({
+        name: displayName || userEmail.split('@')[0],
+        email: userEmail,
+        company: `${companyDomain} Workspace`,
+        phone: '',
+        assistantId: assistantUser?._id,
+        status: 'active',
+        connectedAccounts: [{
+          provider: 'gmail',
+          email: userEmail,
+          status: 'connected',
+          lastSync: new Date(),
+          connectedAt: new Date()
+        }]
+      });
+    }
+    targetClientId = client._id;
+
     if (targetClientId) {
-      // Upsert EmailAccount
-      let account = await EmailAccount.findOne({ clientId: targetClientId, provider: 'gmail' });
+      // Upsert EmailAccount for ANY connecting email
+      let account = await EmailAccount.findOne({ clientId: targetClientId, provider: 'gmail', email: userEmail });
+      if (!account) {
+        account = await EmailAccount.findOne({ clientId: targetClientId, provider: 'gmail' });
+      }
+
       if (account) {
         account.email = userEmail;
         account.displayName = displayName;
@@ -98,7 +130,7 @@ router.get('/google/callback', async (req, res) => {
 
       // Update Client's connectedAccounts
       await Client.findByIdAndUpdate(targetClientId, {
-        $pull: { connectedAccounts: { provider: 'gmail' } }
+        $pull: { connectedAccounts: { provider: 'gmail', email: userEmail } }
       });
       await Client.findByIdAndUpdate(targetClientId, {
         $push: {
@@ -131,7 +163,7 @@ router.get('/google/callback', async (req, res) => {
       }
     }
 
-    res.redirect(`http://localhost:5173/settings?oauth=google_success&email=${encodeURIComponent(userEmail)}`);
+    res.redirect(`http://localhost:5173/settings?oauth=google_success&email=${encodeURIComponent(userEmail)}&clientId=${targetClientId}`);
   } catch (err) {
     console.error('OAuth callback error:', err);
     res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(err.message)}`);
@@ -162,32 +194,83 @@ router.post('/sync-provider', async (req, res) => {
   }
 });
 
-// POST /api/accounts/connect
+// POST /api/accounts/connect - Connect ANY email account dynamically
 router.post('/connect', async (req, res) => {
   try {
-    const { clientId, provider, email } = req.body;
-    const account = await EmailAccount.create({
-      clientId,
-      provider,
-      email,
-      displayName: email,
-      status: 'connected',
-      lastSync: new Date(),
-      connectedAt: new Date()
+    const { clientId, provider = 'gmail', email, displayName } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email address is required' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const mongoose = require('mongoose');
+    let targetClientId = clientId;
+
+    // Find or auto-create client for this custom email
+    let client = null;
+    if (targetClientId && targetClientId !== 'all' && mongoose.Types.ObjectId.isValid(targetClientId)) {
+      client = await Client.findById(targetClientId);
+    }
+    if (!client) {
+      client = await Client.findOne({ email: cleanEmail });
+    }
+    if (!client) {
+      const User = require('../models/User');
+      const assistantUser = await User.findOne({ role: 'assistant' });
+      const domainName = cleanEmail.includes('@') ? cleanEmail.split('@')[1].split('.')[0].toUpperCase() : 'Custom';
+      client = await Client.create({
+        name: displayName || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        company: `${domainName} Account`,
+        assistantId: assistantUser?._id,
+        status: 'active',
+        connectedAccounts: []
+      });
+    }
+    targetClientId = client._id;
+
+    let account = await EmailAccount.findOne({ clientId: targetClientId, email: cleanEmail });
+    if (!account) {
+      account = await EmailAccount.create({
+        clientId: targetClientId,
+        provider: provider.toLowerCase(),
+        email: cleanEmail,
+        displayName: displayName || cleanEmail,
+        status: 'connected',
+        lastSync: new Date(),
+        connectedAt: new Date()
+      });
+    } else {
+      account.status = 'connected';
+      account.lastSync = new Date();
+      await account.save();
+    }
+
+    // Update Client's connectedAccounts list
+    await Client.findByIdAndUpdate(targetClientId, {
+      $pull: { connectedAccounts: { email: cleanEmail } }
     });
-    // Also add to client's connectedAccounts
-    await Client.findByIdAndUpdate(clientId, {
-      $push: { connectedAccounts: { provider, email, status: 'connected', lastSync: new Date(), connectedAt: new Date() } }
+    await Client.findByIdAndUpdate(targetClientId, {
+      $push: {
+        connectedAccounts: {
+          provider: provider.toLowerCase(),
+          email: cleanEmail,
+          status: 'connected',
+          lastSync: new Date(),
+          connectedAt: new Date()
+        }
+      }
     });
+
     await ActivityLog.create({
-      clientId,
+      clientId: targetClientId,
       userId: req.user._id,
       action: 'account_connected',
-      description: `Connected ${provider.toUpperCase()} account: ${email}`,
+      description: `Connected ${provider.toUpperCase()} account for: ${cleanEmail}`,
       entityType: 'account',
       entityId: account._id
     });
-    res.status(201).json({ success: true, account });
+
+    res.status(201).json({ success: true, account, client });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

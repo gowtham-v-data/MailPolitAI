@@ -45,17 +45,14 @@ async function getIntegrationsStatus(clientId) {
   if (validClientId) {
     gmailAccount = await EmailAccount.findOne({ clientId: validClientId, provider: 'gmail' });
   } else {
-    gmailAccount = await EmailAccount.findOne({ provider: 'gmail', email: 'gowthamkrishna3107@gmail.com' });
-    if (!gmailAccount) {
-      gmailAccount = await EmailAccount.findOne({ provider: 'gmail' });
-    }
+    gmailAccount = await EmailAccount.findOne({ provider: 'gmail' }).sort({ lastSync: -1, createdAt: -1 });
   }
   const gmailStatus = {
     name: 'Gmail API',
     id: 'gmail-api',
     type: 'email',
     status: gmailAccount?.status || 'connected',
-    email: gmailAccount?.email || 'gowthamkrishna3107@gmail.com',
+    email: gmailAccount?.email || 'Connected Account',
     lastSync: gmailAccount?.lastSync || new Date(),
     description: 'Gmail account connectivity and real-time email synchronization via Google Workspace OAuth2',
     scopes: [

@@ -11,7 +11,7 @@ import {
 
 export default function Settings() {
   const { user } = useAuth();
-  const { selectedClient, fetchEmailCounts } = useApp();
+  const { selectedClient, fetchEmailCounts, fetchClients } = useApp();
   const toast = useToast();
   const [aiSettings, setAiSettings] = useState({ autoClassify: true, confidenceThreshold: 75 });
   const [notifications, setNotifications] = useState({ email: true, classification: true, delegation: true, digest: false });
@@ -21,6 +21,10 @@ export default function Settings() {
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-2.5-flash');
   const [savingKey, setSavingKey] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [customProvider, setCustomProvider] = useState('gmail');
+  const [connectingCustom, setConnectingCustom] = useState(false);
 
   useEffect(() => {
     fetchIntegrations();
@@ -31,12 +35,37 @@ export default function Settings() {
       toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓ Live emails synchronized!`);
       window.history.replaceState({}, document.title, window.location.pathname);
       fetchIntegrations();
+      if (fetchClients) fetchClients();
       if (fetchEmailCounts) fetchEmailCounts();
     } else if (params.get('oauth') === 'error') {
       toast.error(`Google OAuth error: ${params.get('message') || 'authorization failed'}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [selectedClient]);
+
+  const handleConnectCustomAccount = async (e) => {
+    e.preventDefault();
+    if (!customEmail.trim()) return;
+    setConnectingCustom(true);
+    try {
+      const res = await api.connectAccount({
+        email: customEmail.trim(),
+        displayName: customName.trim() || customEmail.split('@')[0],
+        provider: customProvider,
+        clientId: (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined
+      });
+      toast.success(`Account connected: ${customEmail} ✓`);
+      setCustomEmail('');
+      setCustomName('');
+      fetchIntegrations();
+      if (fetchClients) fetchClients();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to connect email account');
+    } finally {
+      setConnectingCustom(false);
+    }
+  };
 
   const fetchIntegrations = async () => {
     setLoadingIntegrations(true);
@@ -189,6 +218,9 @@ export default function Settings() {
                 </button>
               </div>
             </div>
+            <div className="mt-2 text-[10px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 flex items-center justify-between">
+              <span>Supports <strong>any Google Account</strong>. In Google Cloud Console, click <strong>"Publish App"</strong> to allow any public account without test user limits.</span>
+            </div>
           </div>
 
           {/* 3. Microsoft Graph API */}
@@ -330,6 +362,57 @@ export default function Settings() {
             </div>
             <p className="text-[11px] text-slate-500">
               Without an explicit key, MailPilot AI automatically operates with its high-accuracy deterministic neural classifier with 100% functionality.
+            </p>
+          </form>
+        </div>
+
+        {/* Connect Any Email Account Form */}
+        <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <form onSubmit={handleConnectCustomAccount} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                Connect Any Email Account (Direct Registration)
+              </h3>
+              <span className="text-[11px] text-slate-500">Add any client or executive email</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                type="email"
+                required
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="Enter email (e.g. user@gmail.com)"
+                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                placeholder="Display Name (e.g. Alex Morgan)"
+                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={customProvider}
+                  onChange={(e) => setCustomProvider(e.target.value)}
+                  className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 outline-none"
+                >
+                  <option value="gmail">Gmail</option>
+                  <option value="outlook">Outlook / M365</option>
+                  <option value="custom">Enterprise IMAP</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={connectingCustom || !customEmail.trim()}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 whitespace-nowrap"
+                >
+                  {connectingCustom ? 'Connecting...' : 'Connect'}
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Instantly connects any email address to MailPilot AI, registers a client inbox, and activates AI classification.
             </p>
           </form>
         </div>
