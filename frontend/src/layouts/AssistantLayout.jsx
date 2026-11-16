@@ -24,7 +24,7 @@ function SidebarLink({ item }) {
   return (
     <NavLink
       to={item.path}
-      end={item.path === '/'}
+      end
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group ${
           isActive

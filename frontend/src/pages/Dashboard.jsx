@@ -88,8 +88,8 @@ export default function Dashboard() {
     <div className="p-4 lg:p-6 space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{greeting}, {firstName} 👋</h1>
-        <p className="text-slate-500 text-sm mt-1">Here's what's happening with {selectedClient?.name || 'your client'}'s emails</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{greeting}, {firstName} 👋</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here's what's happening with {selectedClient?.name || 'your client'}'s emails</p>
       </div>
 
       {/* Stats Grid */}
@@ -105,11 +105,11 @@ export default function Dashboard() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left — Recent Conversations */}
-        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-slate-900">Recent Conversations</h2>
-              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+              <h2 className="font-semibold text-slate-900 dark:text-white">Recent Conversations</h2>
+              <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium">
                 {stats?.totalEmails ?? recentEmails.length}
               </span>
             </div>
@@ -117,18 +117,18 @@ export default function Dashboard() {
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold inline-flex items-center gap-1 transition-colors disabled:opacity-50"
                 title="Sync up to 50 real emails from Gmail"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync Inbox'}
               </button>
-              <Link to="/emails" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1">
+              <Link to="/emails" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium inline-flex items-center gap-1">
                 View All <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
             {recentEmails.slice(0, 8).map((email) => (
               <EmailCard key={email._id} email={{
                 ...email,
@@ -141,7 +141,7 @@ export default function Dashboard() {
             ))}
             {recentEmails.length === 0 && (
               <div className="p-8 text-center">
-                <p className="text-slate-500 text-sm mb-3">No real emails synced yet</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">No real emails synced yet</p>
                 <a
                   href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors"
@@ -157,8 +157,8 @@ export default function Dashboard() {
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Distribution Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-900 mb-4">Email Distribution</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Email Distribution</h3>
             {chartData.some(d => d.value > 0) ? (
               <>
                 <div className="h-48">
@@ -175,49 +175,49 @@ export default function Dashboard() {
                   {chartData.map((d) => (
                     <div key={d.name} className="flex items-center gap-2 text-xs">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="text-slate-600">{d.name}</span>
-                      <span className="font-semibold text-slate-900 ml-auto">{d.value}</span>
+                      <span className="text-slate-600 dark:text-slate-400">{d.name}</span>
+                      <span className="font-semibold text-slate-900 dark:text-white ml-auto">{d.value}</span>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div className="h-48 flex items-center justify-center text-slate-400 text-sm">No data yet</div>
+              <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">No data yet</div>
             )}
           </div>
 
           {/* Upcoming Meetings */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900">Upcoming Meetings</h3>
-              <Link to="/meetings" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View All</Link>
+              <h3 className="font-semibold text-slate-900 dark:text-white">Upcoming Meetings</h3>
+              <Link to="/meetings" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium">View All</Link>
             </div>
             <div className="space-y-3">
               {meetings.slice(0, 4).map((m) => (
-                <div key={m._id} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-                  <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Calendar className="w-4 h-4 text-indigo-600" />
+                <div key={m._id} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                  <div className="w-9 h-9 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{m.title}</p>
-                    <p className="text-xs text-slate-500">{formatMeetingDate(m.date)} · {m.time || ''} · {m.location || ''}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{m.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{formatMeetingDate(m.date)} · {m.time || ''} · {m.location || ''}</p>
                   </div>
                 </div>
               ))}
-              {meetings.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No upcoming meetings</p>}
+              {meetings.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">No upcoming meetings</p>}
             </div>
           </div>
 
           {/* AI Insights */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-900 mb-4">AI Insights</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-4">AI Insights</h3>
             <div className="space-y-3">
               {insights.map((insight, i) => (
-                <Link key={i} to={insight.link} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors group">
+                <Link key={i} to={insight.link} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${insight.color}`}>
                     <insight.icon className="w-4 h-4" />
                   </div>
-                  <span className="text-sm text-slate-600 group-hover:text-slate-900">{insight.text}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">{insight.text}</span>
                 </Link>
               ))}
             </div>

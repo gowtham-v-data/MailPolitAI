@@ -17,17 +17,19 @@ export function AppProvider({ children }) {
   // Apply theme to document element
   const applyTheme = useCallback((currentTheme) => {
     const root = document.documentElement;
-    if (currentTheme === 'dark') {
+    const body = document.body;
+    const isDark =
+      currentTheme === 'dark' ||
+      (currentTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
       root.classList.add('dark');
-    } else if (currentTheme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
+      root.setAttribute('data-theme', 'dark');
+      if (body) body.classList.add('dark');
     } else {
       root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
+      if (body) body.classList.remove('dark');
     }
   }, []);
 
