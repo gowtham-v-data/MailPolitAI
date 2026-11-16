@@ -151,17 +151,33 @@ async function chatWithGemini(message, context = {}) {
   const ai = getGenAI();
   if (!ai) return null;
 
-  const emailsSummary = (context.emails || []).slice(0, 15).map(e => (
-    `- "${e.subject}" from ${e.sender?.name || e.sender?.email} [Classified: ${e.classification?.type || 'N/A'}, Priority: ${e.classification?.priority || 'MEDIUM'}]`
+  const emails = context.emails || [];
+  const clientApprovalEmails = emails.filter(e => e.classification?.type === 'CLIENT_TO_REPLY');
+  const assistantEmails = emails.filter(e => e.classification?.type === 'ASSISTANT_TO_REPLY');
+
+  const emailsSummary = emails.slice(0, 15).map(e => (
+    `- Subject: "${e.subject}", From: "${e.sender?.name || e.sender?.email}", Classified: "${e.classification?.type || 'N/A'}", Priority: "${e.classification?.priority || 'MEDIUM'}", Summary: "${e.classification?.summary || e.preview || ''}"`
   )).join('\n');
 
-  const prompt = `You are MailPilot AI, an intelligent personal assistant companion.
-Here is the current state of the user's inbox:
+  const prompt = `You are MailPilot AI, an elite executive AI email assistant companion.
+You have real-time live access to the user's executive inbox.
+
+Inbox Status:
+- Total Live Emails: ${emails.length}
+- Client Approvals Required: ${clientApprovalEmails.length}
+- Assistant Actions: ${assistantEmails.length}
+
+Recent Inbox Conversations:
 ${emailsSummary}
 
-User question: "${message}"
+User Request: "${message}"
 
-Give a helpful, direct, and actionable answer as an executive assistant. Suggest concrete actions if relevant.`;
+Instructions:
+1. Provide a professional, direct, executive response using the actual email data above.
+2. If the user asks about client approvals, explicitly list the real client-pending emails with senders and subjects.
+3. If the user asks for a draft or reply, write a polished, ready-to-send email response.
+4. Do NOT say generic robotic lines like "I understand you're asking about..." or show static menus.
+5. Be concise, executive, and actionable.`;
 
   try {
     const response = await ai.models.generateContent({

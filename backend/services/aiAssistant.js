@@ -16,6 +16,9 @@ const {
 const Email = require('../models/Email');
 const Draft = require('../models/Draft');
 const ActivityLog = require('../models/ActivityLog');
+const Meeting = require('../models/Meeting');
+const Client = require('../models/Client');
+const { processExecutiveQuery } = require('./executiveAssistantEngine');
 
 /**
  * Classify a single email and persist the results.
@@ -139,10 +142,48 @@ async function createDraftReply(emailId, tone = 'professional') {
 }
 
 /**
- * Chat with the AI assistant.
+ * Real-time Intelligent Executive Email Assistant Chat.
  */
 async function chat(message, context = {}) {
-  return chatWithAI(message, context);
+  const clientId = context.clientId && context.clientId !== 'all' ? context.clientId : null;
+  const filter = { isArchived: false };
+  if (clientId) filter.clientId = clientId;
+
+  const [emails, meetings, clients] = await Promise.all([
+    Email.find(filter).sort({ createdAt: -1 }).limit(50).lean().catch(() => []),
+    Meeting.find({ status: 'upcoming' }).sort({ date: 1 }).limit(10).lean().catch(() => []),
+    Client.find().lean().catch(() => [])
+  ]);
+
+  // 1. Try Google Gemini API if configured
+  try {
+    const geminiService = require('./geminiService');
+    if (geminiService.isGeminiConfigured()) {
+      const gChat = await geminiService.chatWithGemini(message, {
+        ...context,
+        emails,
+        meetings,
+        clients
+      });
+      if (gChat && gChat.trim()) {
+        return {
+          response: gChat,
+          type: 'gemini_response',
+          generatedBy: 'Google Gemini AI',
+          suggestions: [
+            'Which emails require client approval?',
+            'What needs attention?',
+            'Summarize my inbox'
+          ]
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Gemini chat unavailable, falling back to Executive Engine:', err.message);
+  }
+
+  // 2. High-Precision Real-time Executive Intelligence Engine over live MongoDB emails
+  return processExecutiveQuery(message, { emails, meetings, clients, context });
 }
 
 /**

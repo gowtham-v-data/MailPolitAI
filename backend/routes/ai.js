@@ -98,6 +98,7 @@ router.post('/chat', async (req, res) => {
     if (emailId) {
       const email = await Email.findById(emailId);
       if (email) {
+        context.email = email;
         context.emailStatus = email.status;
         context.classificationType = email.classification?.type;
       }
