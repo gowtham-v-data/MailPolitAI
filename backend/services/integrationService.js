@@ -20,6 +20,10 @@ const ActivityLog = require('../models/ActivityLog');
  * Returns the live integration status of all 5 supported services
  */
 async function getIntegrationsStatus(clientId) {
+  const validClientId = (clientId && clientId !== 'all' && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId))
+    ? clientId
+    : null;
+
   // 1. Google Gemini API status
   const geminiConfigured = isGeminiConfigured();
   const geminiStatus = {
@@ -37,16 +41,21 @@ async function getIntegrationsStatus(clientId) {
   };
 
   // 2. Gmail API status
-  const gmailAccount = await EmailAccount.findOne({
-    ...(clientId ? { clientId } : {}),
-    provider: 'gmail'
-  });
+  let gmailAccount = null;
+  if (validClientId) {
+    gmailAccount = await EmailAccount.findOne({ clientId: validClientId, provider: 'gmail' });
+  } else {
+    gmailAccount = await EmailAccount.findOne({ provider: 'gmail', email: 'gowthamkrishna3107@gmail.com' });
+    if (!gmailAccount) {
+      gmailAccount = await EmailAccount.findOne({ provider: 'gmail' });
+    }
+  }
   const gmailStatus = {
     name: 'Gmail API',
     id: 'gmail-api',
     type: 'email',
     status: gmailAccount?.status || 'connected',
-    email: gmailAccount?.email || 'james.richardson@techvision.com',
+    email: gmailAccount?.email || 'gowthamkrishna3107@gmail.com',
     lastSync: gmailAccount?.lastSync || new Date(),
     description: 'Gmail account connectivity and real-time email synchronization via Google Workspace OAuth2',
     scopes: [
@@ -60,7 +69,7 @@ async function getIntegrationsStatus(clientId) {
 
   // 3. Microsoft Graph API status (Outlook)
   const outlookAccount = await EmailAccount.findOne({
-    ...(clientId ? { clientId } : {}),
+    ...(validClientId ? { clientId: validClientId } : {}),
     provider: 'outlook'
   });
   const microsoftStatus = {
@@ -83,7 +92,7 @@ async function getIntegrationsStatus(clientId) {
 
   // 4. Google Calendar API status
   const upcomingMeetingsCount = await Meeting.countDocuments({
-    ...(clientId ? { clientId } : {}),
+    ...(validClientId ? { clientId: validClientId } : {}),
     status: 'upcoming'
   });
   const calendarStatus = {
@@ -136,14 +145,17 @@ async function getIntegrationsStatus(clientId) {
  */
 async function syncProvider(provider, clientId, user) {
   const syncTimestamp = new Date();
+  const validClientId = (clientId && clientId !== 'all' && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId))
+    ? clientId
+    : null;
 
   if (provider === 'gmail') {
     await EmailAccount.updateMany(
-      { ...(clientId ? { clientId } : {}), provider: 'gmail' },
+      { ...(validClientId ? { clientId: validClientId } : {}), provider: 'gmail' },
       { lastSync: syncTimestamp, status: 'connected' }
     );
     await ActivityLog.create({
-      clientId: clientId || null,
+      clientId: validClientId || null,
       userId: user?._id || null,
       action: 'account_synced',
       description: 'Gmail API sync completed: Refreshed inbox and synchronized recent threads.',
@@ -159,11 +171,11 @@ async function syncProvider(provider, clientId, user) {
 
   if (provider === 'outlook' || provider === 'microsoft') {
     await EmailAccount.updateMany(
-      { ...(clientId ? { clientId } : {}), provider: 'outlook' },
+      { ...(validClientId ? { clientId: validClientId } : {}), provider: 'outlook' },
       { lastSync: syncTimestamp, status: 'connected' }
     );
     await ActivityLog.create({
-      clientId: clientId || null,
+      clientId: validClientId || null,
       userId: user?._id || null,
       action: 'account_synced',
       description: 'Microsoft Graph API sync completed: Outlook mailbox folders updated.',

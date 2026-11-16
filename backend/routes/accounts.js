@@ -19,7 +19,7 @@ router.get('/google/auth', (req, res) => {
     'https://www.googleapis.com/auth/calendar.events'
   ].join(' ');
 
-  const state = req.query.clientId || '';
+  const state = req.query.clientId && req.query.clientId !== 'all' ? req.query.clientId : '';
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
 
   res.redirect(authUrl);
@@ -64,8 +64,9 @@ router.get('/google/callback', async (req, res) => {
     const displayName = userInfo.name || userEmail;
 
     // Determine target client
+    const mongoose = require('mongoose');
     let targetClientId = state;
-    if (!targetClientId) {
+    if (!targetClientId || targetClientId === 'all' || !mongoose.Types.ObjectId.isValid(targetClientId)) {
       const defaultClient = await Client.findOne({ status: 'active' });
       if (defaultClient) targetClientId = defaultClient._id;
     }
@@ -181,7 +182,12 @@ router.post('/connect', async (req, res) => {
 // GET /api/accounts/:clientId
 router.get('/:clientId', async (req, res) => {
   try {
-    const accounts = await EmailAccount.find({ clientId: req.params.clientId });
+    const { clientId } = req.params;
+    const filter = {};
+    if (clientId && clientId !== 'all' && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId)) {
+      filter.clientId = clientId;
+    }
+    const accounts = await EmailAccount.find(filter);
     res.json({ success: true, accounts });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

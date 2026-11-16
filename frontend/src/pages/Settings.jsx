@@ -40,7 +40,8 @@ export default function Settings() {
   const fetchIntegrations = async () => {
     setLoadingIntegrations(true);
     try {
-      const res = await api.getIntegrationsStatus(selectedClient?._id);
+      const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
+      const res = await api.getIntegrationsStatus(clientId);
       if (res.data?.integrations) {
         setIntegrations(res.data.integrations);
       }
@@ -54,7 +55,8 @@ export default function Settings() {
   const handleSyncProvider = async (providerId) => {
     setSyncingProvider(providerId);
     try {
-      const res = await api.syncIntegrationProvider(providerId, selectedClient?._id);
+      const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
+      const res = await api.syncIntegrationProvider(providerId, clientId);
       toast.success(res.data?.message || `${providerId} synchronized successfully`);
       fetchIntegrations();
     } catch {
@@ -165,12 +167,12 @@ export default function Settings() {
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[140px]">
-                james.richardson@techvision.com
+              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[140px]" title={integrations.find(i => i.id === 'gmail-api')?.email || 'gowthamkrishna3107@gmail.com'}>
+                {integrations.find(i => i.id === 'gmail-api')?.email || 'gowthamkrishna3107@gmail.com'}
               </span>
               <div className="flex items-center gap-1.5">
                 <a
-                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id || ''}`}
+                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
                   className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition-colors"
                   title="Authorize with your own Google Account via OAuth2"
                 >

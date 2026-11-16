@@ -31,7 +31,7 @@ module.exports = async function seedRunner() {
   const james = await Client.create({
     name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', phone: '+1-555-0101',
     assistantId: assistant._id, status: 'active',
-    connectedAccounts: [{ provider: 'gmail', email: 'james.richardson@techvision.com', status: 'connected', lastSync: new Date(), connectedAt: daysAgo(30) }]
+    connectedAccounts: [{ provider: 'gmail', email: 'gowthamkrishna3107@gmail.com', status: 'connected', lastSync: new Date(), connectedAt: daysAgo(30) }]
   });
   const emily = await Client.create({
     name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', phone: '+1-555-0102',
@@ -47,7 +47,7 @@ module.exports = async function seedRunner() {
   // ─── Email Accounts ───
   console.log('📧 Creating email accounts...');
   await EmailAccount.create([
-    { clientId: james._id, provider: 'gmail', email: 'james.richardson@techvision.com', displayName: 'James Richardson', status: 'connected', lastSync: new Date(), totalEmails: 30, unreadEmails: 12, connectedAt: daysAgo(30) },
+    { clientId: james._id, provider: 'gmail', email: 'gowthamkrishna3107@gmail.com', displayName: 'Gowtham Krishna (Primary)', status: 'connected', lastSync: new Date(), totalEmails: 30, unreadEmails: 12, connectedAt: daysAgo(30) },
     { clientId: emily._id, provider: 'outlook', email: 'emily.chen@greenleaf.vc', displayName: 'Emily Chen', status: 'connected', lastSync: new Date(), totalEmails: 18, unreadEmails: 5, connectedAt: daysAgo(25) },
     { clientId: michael._id, provider: 'gmail', email: 'michael@atlasconsulting.com', displayName: 'Michael Torres', status: 'connected', lastSync: new Date(), totalEmails: 14, unreadEmails: 3, connectedAt: daysAgo(20) }
   ]);
