@@ -23,11 +23,12 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="w-full max-w-md">
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <Plane className="w-4 h-4 text-white" />
+        <div className="flex items-center gap-3 justify-center mb-8">
+          <img src="/logo.png" alt="MailPilot AI" className="w-11 h-11 object-contain rounded-xl shadow-xs" />
+          <div className="text-left">
+            <span className="font-bold text-xl text-slate-900 block leading-tight">MailPilot AI</span>
+            <span className="text-xs text-slate-500 font-medium">Your AI Email Assistant</span>
           </div>
-          <span className="font-bold text-lg text-slate-900">MailPilot AI</span>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">

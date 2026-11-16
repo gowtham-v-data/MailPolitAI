@@ -41,8 +41,8 @@ export default function Onboarding() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
           {step === 0 && (
             <>
-              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-indigo-100">
-                <Sparkles className="w-8 h-8 text-indigo-600" />
+              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                <img src="/logo.png" alt="MailPilot AI" className="w-20 h-20 object-contain drop-shadow-sm" />
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome to MailPilot AI</h2>
               <p className="text-indigo-600 font-semibold text-xs tracking-wide uppercase mb-3">AI-Powered Email Management for Personal Assistants</p>

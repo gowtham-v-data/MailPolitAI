@@ -38,11 +38,12 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <Plane className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-3.5 mb-16">
+            <img src="/logo.png" alt="MailPilot AI" className="w-12 h-12 object-contain bg-white rounded-2xl p-1 shadow-md flex-shrink-0" />
+            <div>
+              <span className="text-white font-bold text-xl block leading-tight">MailPilot AI</span>
+              <span className="text-indigo-200 text-xs font-medium">Your AI Email Assistant</span>
             </div>
-            <span className="text-white font-bold text-xl">MailPilot AI</span>
           </div>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             AI-Powered Email<br />Management
@@ -71,11 +72,12 @@ export default function Login() {
       {/* Right - Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-white">
         <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Plane className="w-4 h-4 text-white" />
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <img src="/logo.png" alt="MailPilot AI" className="w-10 h-10 object-contain rounded-xl shadow-xs" />
+            <div>
+              <span className="font-bold text-lg text-slate-900 block leading-tight">MailPilot AI</span>
+              <span className="text-xs text-slate-500 font-medium">Your AI Email Assistant</span>
             </div>
-            <span className="font-bold text-lg text-slate-900">MailPilot AI</span>
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>

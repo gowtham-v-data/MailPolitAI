@@ -34,12 +34,10 @@ export default function ClientLayout() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-xs">
-              <Plane className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="MailPilot AI" className="w-10 h-10 object-contain rounded-xl flex-shrink-0" />
             <div>
               <h1 className="font-bold text-slate-900 text-base leading-tight">MailPilot AI</h1>
-              <p className="text-xs text-slate-500">Executive Decision Portal</p>
+              <p className="text-xs text-slate-500">Your AI Email Assistant · Executive Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

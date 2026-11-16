@@ -61,14 +61,15 @@ export default function AssistantLayout() {
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-xs">
-              <Plane className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo.png" alt="MailPilot AI" className="w-9 h-9 object-contain rounded-lg flex-shrink-0" />
+            <div className="min-w-0">
+              <span className="font-bold text-base text-slate-900 tracking-tight block leading-tight truncate">MailPilot AI</span>
+              <span className="text-[10px] text-slate-400 font-medium block leading-none truncate">Your AI Email Assistant</span>
             </div>
-            <span className="font-bold text-lg text-slate-900 tracking-tight">MailPilot AI</span>
-          </div>
-          <button onClick={closeSidebar} className="lg:hidden p-1 text-slate-400 hover:text-slate-600">
+          </Link>
+          <button onClick={closeSidebar} className="lg:hidden p-1 text-slate-400 hover:text-slate-600 flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
