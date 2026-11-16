@@ -304,12 +304,18 @@ async function classifyEmail(email) {
           category: gResult.category || 'general',
           extractedInfo: {
             actionItems: gResult.actionItems || [],
-            deadlines: (gResult.deadlines || []).map(d => ({ description: d.description, date: new Date(d.date) })),
-            meetingInfo: gResult.meetingInfo ? {
+            deadlines: (gResult.deadlines || []).filter(d => d && d.description).map(d => {
+              const parsedDate = d.date ? new Date(d.date) : null;
+              return {
+                description: d.description,
+                date: parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null
+              };
+            }),
+            meetingInfo: (gResult.meetingInfo && gResult.meetingInfo.title) ? {
               title: gResult.meetingInfo.title,
-              date: gResult.meetingInfo.date ? new Date(gResult.meetingInfo.date) : null,
-              time: gResult.meetingInfo.time,
-              location: gResult.meetingInfo.location,
+              date: gResult.meetingInfo.date && !isNaN(new Date(gResult.meetingInfo.date).getTime()) ? new Date(gResult.meetingInfo.date) : null,
+              time: gResult.meetingInfo.time || '',
+              location: gResult.meetingInfo.location || '',
               participants: []
             } : null
           },

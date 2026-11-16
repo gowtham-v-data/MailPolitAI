@@ -24,6 +24,17 @@ export default function Settings() {
 
   useEffect(() => {
     fetchIntegrations();
+
+    // Check for OAuth callback redirects
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'google_success') {
+      toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetchIntegrations();
+    } else if (params.get('oauth') === 'error') {
+      toast.error(`Google OAuth error: ${params.get('message') || 'authorization failed'}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, [selectedClient]);
 
   const fetchIntegrations = async () => {
@@ -153,18 +164,27 @@ export default function Settings() {
                 Real-time email synchronization and thread ingestion for client Gmail accounts with read/send scopes.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[160px]">
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500 font-medium truncate max-w-[140px]">
                 james.richardson@techvision.com
               </span>
-              <button
-                onClick={() => handleSyncProvider('gmail')}
-                disabled={syncingProvider === 'gmail'}
-                className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${syncingProvider === 'gmail' ? 'animate-spin' : ''}`} />
-                Sync Now
-              </button>
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id || ''}`}
+                  className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition-colors"
+                  title="Authorize with your own Google Account via OAuth2"
+                >
+                  <ExternalLink className="w-3 h-3" /> Connect Google
+                </a>
+                <button
+                  onClick={() => handleSyncProvider('gmail')}
+                  disabled={syncingProvider === 'gmail'}
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingProvider === 'gmail' ? 'animate-spin' : ''}`} />
+                  Sync
+                </button>
+              </div>
             </div>
           </div>
 

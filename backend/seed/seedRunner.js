@@ -100,30 +100,28 @@ module.exports = async function seedRunner() {
     delete data.intendedType;
 
     const email = new Email(data);
-    try {
-      const result = await classifyEmail(email);
-      email.classification = {
-        type: intendedType,
-        confidence: result.confidence,
-        reason: result.reason,
-        summary: result.summary,
-        actionRequired: intendedType === 'ASSISTANT_TO_REPLY' || intendedType === 'CLIENT_TO_REPLY',
-        suggestedAction: result.suggestedAction,
-        priority: result.priority,
-        classifiedAt: new Date(),
-        classifiedBy: 'ai'
-      };
-      email.category = result.category;
-      if (result.extractedInfo) email.extractedInfo = result.extractedInfo;
-    } catch (err) {
-      email.classification = {
-        type: intendedType, confidence: 0.85, reason: 'Classified during seeding',
-        summary: `Email regarding "${email.subject}"`,
-        actionRequired: intendedType !== 'NO_REPLY_NEEDED',
-        suggestedAction: 'Review this email', priority: 'MEDIUM',
-        classifiedAt: new Date(), classifiedBy: 'ai'
-      };
-    }
+    email.classification = {
+      type: intendedType,
+      confidence: intendedType === 'CLIENT_TO_REPLY' ? 0.96 : intendedType === 'ASSISTANT_TO_REPLY' ? 0.94 : 0.90,
+      reason: intendedType === 'CLIENT_TO_REPLY'
+        ? 'Requires client personal authorization, signature, or high-stakes strategic decision.'
+        : intendedType === 'ASSISTANT_TO_REPLY'
+        ? 'Routine administrative inquiry, logistics, or scheduling for assistant to handle.'
+        : intendedType === 'NO_REPLY_NEEDED'
+        ? 'Automated notification, status report, or newsletter requiring no response.'
+        : 'Mixed content or ambiguous request flagged for assistant review.',
+      summary: `Email regarding "${email.subject}"`,
+      actionRequired: intendedType === 'ASSISTANT_TO_REPLY' || intendedType === 'CLIENT_TO_REPLY',
+      suggestedAction: intendedType === 'CLIENT_TO_REPLY'
+        ? 'Review proposal and provide personal approval'
+        : intendedType === 'ASSISTANT_TO_REPLY'
+        ? 'Coordinate scheduling and confirm logistics'
+        : 'Archive or file away',
+      priority: intendedType === 'CLIENT_TO_REPLY' ? 'HIGH' : intendedType === 'ASSISTANT_TO_REPLY' ? 'MEDIUM' : 'LOW',
+      classifiedAt: new Date(),
+      classifiedBy: 'ai'
+    };
+    email.category = intendedType === 'ASSISTANT_TO_REPLY' ? 'administrative' : intendedType === 'CLIENT_TO_REPLY' ? 'urgent' : 'general';
     email.classificationHistory = [{ type: intendedType, confidence: email.classification.confidence, reason: email.classification.reason, changedBy: 'ai', changedAt: new Date() }];
     if (intendedType === 'CLIENT_TO_REPLY') {
       email.isImportant = true;
