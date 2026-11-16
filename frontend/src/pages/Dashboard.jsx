@@ -31,9 +31,9 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const clientId = selectedClient?._id;
+      const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : null;
       const [statsRes, recentRes, meetingsRes] = await Promise.all([
-        clientId ? api.getDashboardStats(clientId).catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
+        clientId ? api.getDashboardStats(clientId).catch(() => ({ data: {} })) : api.getDashboardStats().catch(() => ({ data: {} })),
         clientId
           ? api.getRecentEmails(clientId).catch(() => ({ data: { emails: [] } }))
           : api.getEmails({ limit: 8 }).catch(() => ({ data: { emails: [] } })),

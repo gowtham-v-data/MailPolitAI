@@ -74,6 +74,30 @@ export function AuthProvider({ children }) {
     navigate('/login');
   }, [navigate]);
 
+  const switchToClientView = useCallback(async () => {
+    try {
+      const res = await api.login({ email: 'james@techvision.com', password: 'password123' });
+      localStorage.setItem('mailpilot_token', res.data.token);
+      setToken(res.data.token);
+      setUser(res.data.user);
+      navigate('/client');
+    } catch {
+      navigate('/client');
+    }
+  }, [navigate]);
+
+  const switchToAssistantView = useCallback(async () => {
+    try {
+      const res = await api.login({ email: 'sarah@mailpilot.ai', password: 'password123' });
+      localStorage.setItem('mailpilot_token', res.data.token);
+      setToken(res.data.token);
+      setUser(res.data.user);
+      navigate('/');
+    } catch {
+      navigate('/');
+    }
+  }, [navigate]);
+
   const value = {
     user,
     token,
@@ -81,6 +105,8 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    switchToClientView,
+    switchToAssistantView,
     isAuthenticated,
   };
 

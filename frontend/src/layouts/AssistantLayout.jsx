@@ -46,7 +46,7 @@ function SidebarLink({ item }) {
 
 export default function AssistantLayout() {
   const { sidebarOpen, toggleSidebar, closeSidebar, notifications } = useApp();
-  const { user } = useAuth();
+  const { user, switchToClientView } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadNotifs = notifications.filter((n) => !n.read).length;
@@ -85,13 +85,13 @@ export default function AssistantLayout() {
 
           {/* Quick link to Client-Facing View */}
           <div className="pt-3">
-            <Link
-              to="/client"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50/80 hover:bg-amber-100 border border-amber-200/60 transition-colors"
+            <button
+              onClick={switchToClientView}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50/90 hover:bg-amber-100 border border-amber-200/70 transition-colors text-left"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-amber-600" />
+              <ExternalLink className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
               <span>Switch to Client View</span>
-            </Link>
+            </button>
           </div>
         </nav>
 
@@ -110,6 +110,9 @@ export default function AssistantLayout() {
           </button>
           <div className="flex-1 max-w-xl">
             <SearchBar placeholder="Search emails, clients..." />
+          </div>
+          <div className="hidden md:block w-56">
+            <ClientSelector compact />
           </div>
           <div className="flex items-center gap-3 relative">
             {/* Notification Bell */}

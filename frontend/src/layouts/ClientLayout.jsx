@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function ClientLayout() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, switchToAssistantView } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -21,13 +21,13 @@ export default function ClientLayout() {
             <span className="font-medium text-white">Executive Client View</span>
             <span className="text-slate-400 hidden sm:inline">— James Richardson (TechVision Inc)</span>
           </div>
-          <Link
-            to="/"
+          <button
+            onClick={switchToAssistantView}
             className="flex items-center gap-1.5 text-indigo-300 hover:text-white font-medium transition-colors"
           >
             <Bot className="w-3.5 h-3.5" />
             Switch to Assistant Dashboard
-          </Link>
+          </button>
         </div>
       </div>
 

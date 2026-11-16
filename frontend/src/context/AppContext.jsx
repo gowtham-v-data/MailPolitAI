@@ -43,16 +43,17 @@ export function AppProvider({ children }) {
     try {
       const response = await api.getClients();
       const clientList = response.data.clients || response.data || [];
-      setClients(clientList);
-      if (clientList.length > 0) {
-        setSelectedClient((prev) => prev || clientList[0]);
-      }
+      const allOption = { _id: 'all', name: 'All Clients', company: 'Combined Inbox', email: 'all@mailpilot.ai' };
+      setClients([allOption, ...clientList]);
+      // Default to "All Clients" or James Richardson for maximum visibility
+      setSelectedClient((prev) => prev || allOption);
     } catch (err) {
       // Use mock data if API not available
       const mockClients = [
-        { _id: '1', name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', status: 'active' },
-        { _id: '2', name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', status: 'active' },
-        { _id: '3', name: 'Michael Torres', email: 'michael@atlasconsulting.com', company: 'Atlas Consulting', status: 'active' },
+        { _id: 'all', name: 'All Clients', company: 'Combined Inbox', email: 'all@mailpilot.ai' },
+        { _id: 'james-demo', name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', status: 'active' },
+        { _id: 'emily-demo', name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', status: 'active' },
+        { _id: 'michael-demo', name: 'Michael Torres', email: 'michael@atlasconsulting.com', company: 'Atlas Consulting', status: 'active' },
       ];
       setClients(mockClients);
       setSelectedClient((prev) => prev || mockClients[0]);
@@ -61,25 +62,25 @@ export function AppProvider({ children }) {
 
   // Fetch email counts
   useEffect(() => {
-    if (isAuthenticated && selectedClient) {
+    if (isAuthenticated) {
       fetchEmailCounts();
     }
   }, [isAuthenticated, selectedClient]);
 
   const fetchEmailCounts = useCallback(async () => {
     try {
-      const clientId = selectedClient?._id || selectedClient?.id || '';
+      const clientId = (selectedClient?._id && selectedClient._id !== 'all') ? selectedClient._id : '';
       const response = await api.getEmailStats(clientId);
       setEmailCounts(response.data);
     } catch {
       setEmailCounts({
-        total: 42,
+        total: 30,
         unread: 12,
-        assistantToReply: 8,
-        clientToReply: 5,
-        noReplyNeeded: 22,
-        needsReview: 7,
-        important: 4,
+        assistantToReply: 10,
+        clientToReply: 8,
+        noReplyNeeded: 7,
+        needsReview: 5,
+        important: 8,
       });
     }
   }, [selectedClient]);

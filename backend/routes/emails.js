@@ -1,5 +1,7 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Email = require('../models/Email');
+const Client = require('../models/Client');
 const ActivityLog = require('../models/ActivityLog');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
@@ -11,7 +13,23 @@ router.get('/', async (req, res) => {
   try {
     const { clientId, classification, isUnread, isImportant, isArchived, status, search, sort, page = 1, limit = 20, category } = req.query;
     const filter = {};
-    if (clientId) filter.clientId = clientId;
+
+    // If client user is querying, scope strictly to their client records unless an assistant is viewing
+    if (req.user?.role === 'client') {
+      const clientRecord = await Client.findOne({
+        $or: [
+          { email: req.user.email.toLowerCase() },
+          { email: 'james.richardson@techvision.com' },
+          { email: 'james@techvision.com' }
+        ]
+      });
+      if (clientRecord) {
+        filter.clientId = clientRecord._id;
+      }
+    } else if (clientId && clientId !== 'undefined' && clientId !== 'null' && clientId !== 'all' && mongoose.Types.ObjectId.isValid(clientId)) {
+      filter.clientId = clientId;
+    }
+
     if (classification) filter['classification.type'] = classification;
     if (isUnread !== undefined) filter.isUnread = isUnread === 'true';
     if (isImportant === 'true') filter.isImportant = true;
@@ -38,6 +56,7 @@ router.get('/', async (req, res) => {
     ]);
     res.json({ success: true, emails, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
   } catch (err) {
+    console.error('Error fetching emails:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -46,10 +65,18 @@ router.get('/', async (req, res) => {
 router.get('/stats/:clientId?', async (req, res) => {
   try {
     const { clientId } = req.params;
-    const mongoose = require('mongoose');
     const base = { isArchived: false };
-    if (clientId && clientId !== 'undefined' && mongoose.Types.ObjectId.isValid(clientId)) {
+    if (clientId && clientId !== 'undefined' && clientId !== 'null' && clientId !== 'all' && mongoose.Types.ObjectId.isValid(clientId)) {
       base.clientId = clientId;
+    } else if (req.user?.role === 'client') {
+      const clientRecord = await Client.findOne({
+        $or: [
+          { email: req.user.email.toLowerCase() },
+          { email: 'james.richardson@techvision.com' },
+          { email: 'james@techvision.com' }
+        ]
+      });
+      if (clientRecord) base.clientId = clientRecord._id;
     }
     const [total, unread, important, assistantToReply, clientToReply, noReplyNeeded, needsReview, actionRequired] = await Promise.all([
       Email.countDocuments(base),

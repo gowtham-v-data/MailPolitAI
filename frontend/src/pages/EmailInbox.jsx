@@ -47,7 +47,7 @@ export default function EmailInbox() {
         limit,
         sort: sort === 'newest' ? 'newest' : sort === 'oldest' ? 'oldest' : 'priority',
       };
-      if (selectedClient?._id) params.clientId = selectedClient._id;
+      if (selectedClient?._id && selectedClient._id !== 'all') params.clientId = selectedClient._id;
       if (classification) params.classification = classification;
       else if (filters.classification) params.classification = filters.classification;
       if (filters.priority) params.priority = filters.priority;
