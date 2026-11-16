@@ -5,6 +5,17 @@ import ClassificationBadge from './ClassificationBadge';
 import PriorityBadge from './PriorityBadge';
 import { stringToColor, getInitials, formatDate } from '../utils/helpers';
 
+function cleanPreview(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&zwnj;/gi, '')
+    .replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
 export default function EmailCard({ email, onClick, onToggleImportant, onMarkRead, compact = false }) {
   const navigate = useNavigate();
   const isUnread = !email.isRead;
@@ -56,7 +67,7 @@ export default function EmailCard({ email, onClick, onToggleImportant, onMarkRea
         </p>
         {!compact && (
           <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">
-            {email.preview || email.snippet || email.body?.substring(0, 100)}
+            {cleanPreview(email.preview || email.snippet || email.body?.substring(0, 100))}
           </p>
         )}
       </div>

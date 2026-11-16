@@ -74,7 +74,7 @@ async function getIntegrationsStatus(clientId) {
     id: 'microsoft-graph',
     type: 'email',
     status: outlookAccount?.status || 'connected',
-    email: outlookAccount?.email || 'emily.chen@greenleaf.vc',
+    email: outlookAccount?.email || 'Not connected',
     lastSync: outlookAccount?.lastSync || new Date(),
     description: 'Outlook and Microsoft 365 enterprise email integration via Microsoft Graph API v1.0',
     scopes: [
@@ -98,6 +98,7 @@ async function getIntegrationsStatus(clientId) {
     type: 'calendar',
     status: 'connected',
     eventsSynced: upcomingMeetingsCount,
+    meetingCount: upcomingMeetingsCount,
     lastSync: new Date(),
     description: 'Meeting and appointment synchronization extracted automatically from email conversations',
     scopes: ['https://www.googleapis.com/auth/calendar.events'],
@@ -107,6 +108,7 @@ async function getIntegrationsStatus(clientId) {
   // 5. MongoDB Atlas status
   const dbState = mongoose.connection.readyState;
   const isAtlas = mongoose.connection.host && mongoose.connection.host.includes('mongodb.net');
+  const totalEmailCount = await Email.countDocuments();
   const atlasStatus = {
     name: 'MongoDB Atlas',
     id: 'mongodb-atlas',
@@ -116,9 +118,10 @@ async function getIntegrationsStatus(clientId) {
     database: mongoose.connection.name || 'mailpilot',
     cluster: 'MailPilotCluster (AWS / us-east-1)',
     isCloud: isAtlas,
+    emailCount: totalEmailCount,
     description: 'Persistent cloud database management storing users, clients, emails, classifications, and activity audits',
     collections: {
-      emails: await Email.countDocuments(),
+      emails: totalEmailCount,
       accounts: await EmailAccount.countDocuments(),
       meetings: await Meeting.countDocuments()
     }
@@ -155,7 +158,7 @@ async function syncProvider(provider, clientId, user) {
     if (gmailAccount && gmailAccount.accessToken) {
       try {
         const { syncRealGmailEmails } = require('./gmailSyncService');
-        const realSync = await syncRealGmailEmails(gmailAccount, { maxResults: 15 });
+        const realSync = await syncRealGmailEmails(gmailAccount, { maxResults: 50 });
         return {
           provider: 'gmail',
           status: 'synced',

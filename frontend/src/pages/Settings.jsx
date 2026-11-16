@@ -25,6 +25,23 @@ export default function Settings() {
   const [customName, setCustomName] = useState('');
   const [customProvider, setCustomProvider] = useState('gmail');
   const [connectingCustom, setConnectingCustom] = useState(false);
+  const [purging, setPurging] = useState(false);
+
+  const handlePurgeDummyData = async () => {
+    if (!window.confirm('Wipe all simulated dummy emails to operate in 100% Real Data Only mode?')) return;
+    setPurging(true);
+    try {
+      const res = await api.purgeDummyData();
+      toast.success(res.data?.message || 'Dummy data wiped! Operating in Real Data Only mode.');
+      fetchIntegrations();
+      if (fetchClients) fetchClients();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch (err) {
+      toast.error('Failed to purge dummy data');
+    } finally {
+      setPurging(false);
+    }
+  };
 
   useEffect(() => {
     fetchIntegrations();
@@ -244,7 +261,7 @@ export default function Settings() {
             </div>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-[11px] text-slate-500 font-medium truncate max-w-[160px]">
-                emily.chen@greenleaf.vc
+                {integrations.find(i => i.id === 'ms-graph')?.email || 'Not connected'}
               </span>
               <button
                 onClick={() => handleSyncProvider('outlook')}
@@ -280,7 +297,7 @@ export default function Settings() {
             </div>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-[11px] text-slate-500 font-medium">
-                6 Upcoming Meetings
+                {integrations.find(i => i.id === 'google-calendar')?.meetingCount ?? 0} Upcoming Meetings
               </span>
               <button
                 onClick={() => handleSyncProvider('google-calendar')}
@@ -316,7 +333,7 @@ export default function Settings() {
             </div>
             <div className="flex items-center gap-2 self-start sm:self-center">
               <span className="px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 shadow-2xs">
-                ✓ 30 Emails Stored
+                ✓ {integrations.find(i => i.id === 'mongodb-atlas')?.emailCount ?? 0} Emails Stored
               </span>
             </div>
           </div>

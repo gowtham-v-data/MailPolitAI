@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 import * as api from '../api';
 import EmailCard from '../components/EmailCard';
 import FilterBar from '../components/FilterBar';
@@ -8,7 +9,7 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import { CLASSIFICATION_CONFIG } from '../utils/constants';
-import { Mail, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, SlidersHorizontal, ChevronLeft, ChevronRight, ExternalLink, Sparkles, RefreshCw } from 'lucide-react';
 
 const TITLES = {
   ASSISTANT_TO_REPLY: 'Assistant to Reply',
@@ -20,11 +21,14 @@ const TITLES = {
 export default function EmailInbox() {
   const { classification } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { selectedClient } = useApp();
+  const { selectedClient, fetchEmailCounts } = useApp();
+  const toast = useToast();
   const [emails, setEmails] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [sort, setSort] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
@@ -36,7 +40,6 @@ export default function EmailInbox() {
     isImportant: searchParams.get('isImportant') || '',
   });
 
-  const limit = 15;
   const title = classification ? TITLES[classification] || classification : 'All Emails';
 
   const fetchEmails = useCallback(async () => {
@@ -65,10 +68,25 @@ export default function EmailInbox() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, page, sort, search, classification, filters]);
+  }, [selectedClient, page, limit, sort, search, classification, filters]);
 
   useEffect(() => { fetchEmails(); }, [fetchEmails]);
-  useEffect(() => { setPage(1); }, [classification, search, filters]);
+  useEffect(() => { setPage(1); }, [classification, search, filters, limit]);
+
+  const handleSyncEmails = async () => {
+    setSyncing(true);
+    try {
+      const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
+      const res = await api.syncIntegrationProvider('gmail', clientId);
+      toast.success(res.data?.message || 'Inbox synchronized successfully');
+      fetchEmails();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch {
+      toast.error('Sync failed. Please try again.');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleToggleImportant = async (id) => {
     try {
@@ -87,8 +105,17 @@ export default function EmailInbox() {
           <h1 className="text-xl font-bold text-slate-900">{title}</h1>
           <p className="text-sm text-slate-500 mt-0.5">{total} email{total !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-64">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSyncEmails}
+            disabled={syncing || loading}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors disabled:opacity-50"
+            title="Sync up to 50 real emails from connected Gmail"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync Emails'}
+          </button>
+          <div className="w-56 sm:w-64">
             <SearchBar value={search} onChange={setSearch} placeholder="Search emails..." />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
@@ -120,11 +147,42 @@ export default function EmailInbox() {
         {loading ? (
           <div className="py-20"><LoadingSpinner /></div>
         ) : emails.length === 0 ? (
-          <EmptyState
-            icon={Mail}
-            title="No emails found"
-            description={search ? 'Try adjusting your search or filters' : 'No emails match the current filters'}
-          />
+          search || classification || Object.values(filters).some(v => v) ? (
+            <EmptyState
+              icon={Mail}
+              title="No emails found"
+              description={search ? 'Try adjusting your search or filters' : 'No emails match the current filters'}
+            />
+          ) : (
+            <div className="py-16 px-6 text-center">
+              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-indigo-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Real Emails Synced Yet</h3>
+              <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
+                Connect your Gmail account to start syncing real emails. MailPilot AI will automatically classify each email using Google Gemini AI.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Connect Google Account
+                </a>
+                <Link
+                  to="/settings"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                  Go to Settings
+                </Link>
+              </div>
+              <p className="text-xs text-slate-400 mt-4">
+                Supports any Google Account · OAuth2 secured · Real-time Gemini AI classification
+              </p>
+            </div>
+          )
         ) : (
           <div className="divide-y divide-slate-50">
             {emails.map((email) => (
@@ -146,22 +204,38 @@ export default function EmailInbox() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm">
-          <p className="text-slate-500">Page {page} of {totalPages}</p>
-          <div className="flex gap-2">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-              className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1">
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-              className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1">
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+      {/* Pagination & Limit Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mt-4 text-sm gap-3">
+        <div className="flex items-center gap-2 text-slate-500">
+          <span className="text-xs">Show:</span>
+          <select
+            value={limit}
+            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+            className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 bg-white outline-none cursor-pointer hover:border-slate-300"
+          >
+            <option value={15}>15 per page</option>
+            <option value={25}>25 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+          </select>
+          <span className="text-xs text-slate-400">({total} total)</span>
         </div>
-      )}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-3">
+            <p className="text-slate-500 text-xs">Page {page} of {totalPages}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
+                <ChevronLeft className="w-3.5 h-3.5" /> Previous
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1 text-xs font-medium">
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

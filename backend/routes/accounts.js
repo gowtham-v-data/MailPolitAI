@@ -156,7 +156,7 @@ router.get('/google/callback', async (req, res) => {
       let realSyncedCount = 0;
       try {
         const { syncRealGmailEmails } = require('../services/gmailSyncService');
-        const syncRes = await syncRealGmailEmails(account, { maxResults: 15 });
+        const syncRes = await syncRealGmailEmails(account, { maxResults: 50 });
         realSyncedCount = syncRes.syncedCount || 0;
       } catch (syncErr) {
         console.warn('[Google OAuth] Initial real Gmail sync notice:', syncErr.message);
@@ -312,6 +312,24 @@ router.delete('/:id', async (req, res) => {
     const account = await EmailAccount.findByIdAndDelete(req.params.id);
     if (!account) return res.status(404).json({ success: false, message: 'Account not found' });
     res.json({ success: true, message: 'Account disconnected' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/accounts/purge-dummy-data - Purges all simulated/dummy data
+router.post('/purge-dummy-data', async (req, res) => {
+  try {
+    const Email = require('../models/Email');
+    const Meeting = require('../models/Meeting');
+    // Remove all emails except real Gmail ones (which start with 'gmail-')
+    const emailResult = await Email.deleteMany({ threadId: { $not: /^gmail-/ } });
+    const meetingResult = await Meeting.deleteMany({});
+    res.json({
+      success: true,
+      message: `Successfully purged ${emailResult.deletedCount} dummy emails. MailPilot AI is operating in Real Data Only Mode.`,
+      realEmailsCount: await Email.countDocuments()
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

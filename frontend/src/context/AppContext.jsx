@@ -8,11 +8,7 @@ export function AppProvider({ children }) {
   const { isAuthenticated } = useAuth();
   const [selectedClient, setSelectedClient] = useState(null);
   const [clients, setClients] = useState([]);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'info', text: '5 new emails classified', time: new Date().toISOString(), read: false },
-    { id: 2, type: 'warning', text: '3 emails need your attention', time: new Date().toISOString(), read: false },
-    { id: 3, type: 'success', text: 'AI draft ready for review', time: new Date().toISOString(), read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [emailCounts, setEmailCounts] = useState({
     total: 0,
@@ -48,15 +44,12 @@ export function AppProvider({ children }) {
       // Default to "All Clients" or James Richardson for maximum visibility
       setSelectedClient((prev) => prev || allOption);
     } catch (err) {
-      // Use mock data if API not available
-      const mockClients = [
+      // No mock/dummy data — show only real connected clients
+      const emptyList = [
         { _id: 'all', name: 'All Clients', company: 'Combined Inbox', email: 'all@mailpilot.ai' },
-        { _id: 'james-demo', name: 'James Richardson', email: 'james.richardson@techvision.com', company: 'TechVision Inc', status: 'active' },
-        { _id: 'emily-demo', name: 'Emily Chen', email: 'emily.chen@greenleaf.vc', company: 'GreenLeaf Ventures', status: 'active' },
-        { _id: 'michael-demo', name: 'Michael Torres', email: 'michael@atlasconsulting.com', company: 'Atlas Consulting', status: 'active' },
       ];
-      setClients(mockClients);
-      setSelectedClient((prev) => prev || mockClients[0]);
+      setClients(emptyList);
+      setSelectedClient((prev) => prev || emptyList[0]);
     }
   }, []);
 
@@ -73,14 +66,15 @@ export function AppProvider({ children }) {
       const response = await api.getEmailStats(clientId);
       setEmailCounts(response.data);
     } catch {
+      // No dummy fallback — show zeros when API unavailable
       setEmailCounts({
-        total: 30,
-        unread: 12,
-        assistantToReply: 10,
-        clientToReply: 8,
-        noReplyNeeded: 7,
-        needsReview: 5,
-        important: 8,
+        total: 0,
+        unread: 0,
+        assistantToReply: 0,
+        clientToReply: 0,
+        noReplyNeeded: 0,
+        needsReview: 0,
+        important: 0,
       });
     }
   }, [selectedClient]);

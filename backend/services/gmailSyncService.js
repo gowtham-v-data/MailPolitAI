@@ -42,36 +42,160 @@ function decodeBase64Url(str = '') {
 }
 
 /**
- * Recursively extracts plain text or HTML body from a Gmail payload
+ * Decodes HTML entities and strips invisible email preheader / zero-width spacer spam
  */
-function extractBody(payload) {
-  if (!payload) return '';
-  if (payload.body && payload.body.data) {
-    return decodeBase64Url(payload.body.data);
+function cleanEmailText(text = '') {
+  if (!text) return '';
+  let cleaned = String(text);
+
+  // 1. Strip <style> and <script> contents
+  cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ');
+  cleaned = cleaned.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ');
+
+  // 2. Strip hidden preheader elements (display:none, font-size:0/1px, max-height:0, opacity:0)
+  cleaned = cleaned.replace(/<[^>]+style\s*=\s*["'][^"']*(display\s*:\s*none|font-size\s*:\s*[01]px|max-height\s*:\s*0|opacity\s*:\s*0)[^"']*["'][^>]*>[\s\S]*?<\/[^>]+>/gi, ' ');
+
+  // 3. Convert line breaks and paragraph ends
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, '\n');
+  cleaned = cleaned.replace(/<\/p>/gi, '\n\n');
+  cleaned = cleaned.replace(/<\/div>/gi, '\n');
+  cleaned = cleaned.replace(/<\/tr>/gi, '\n');
+  cleaned = cleaned.replace(/<\/li>/gi, '\n');
+
+  // 4. Strip any remaining HTML tags
+  cleaned = cleaned.replace(/<[^>]+>/g, ' ');
+
+  // 5. Strip repetitive preheader spacer spam before entity decode (&nbsp;&zwnj; repeated)
+  cleaned = cleaned.replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ');
+
+  // 6. Decode HTML entities
+  const entityMap = {
+    '&nbsp;': ' ',
+    '&zwnj;': '',
+    '&zwj;': '',
+    '&shy;': '',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&#x27;': "'",
+    '&rsquo;': "'",
+    '&lsquo;': "'",
+    '&rdquo;': '"',
+    '&ldquo;': '"',
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&hellip;': '...',
+    '&bull;': '•',
+    '&copy;': '©',
+    '&reg;': '®',
+    '&trade;': '™'
+  };
+
+  for (const [entity, replacement] of Object.entries(entityMap)) {
+    cleaned = cleaned.replaceAll(new RegExp(entity, 'gi'), replacement);
   }
-  if (payload.parts && Array.isArray(payload.parts)) {
-    // Prefer text/plain first
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body && part.body.data) {
-        return decodeBase64Url(part.body.data);
+
+  // Handle numeric entities &#160; &#x20; etc.
+  cleaned = cleaned.replace(/&#(\d+);/g, (_, dec) => {
+    try {
+      const code = parseInt(dec, 10);
+      if (code === 8204 || code === 8205 || code === 8203 || code === 65279) return ''; // zero-width
+      return String.fromCharCode(code);
+    } catch {
+      return '';
+    }
+  });
+  cleaned = cleaned.replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+    try {
+      const code = parseInt(hex, 16);
+      if (code === 0x200c || code === 0x200d || code === 0x200b || code === 0xfeff) return '';
+      return String.fromCharCode(code);
+    } catch {
+      return '';
+    }
+  });
+
+  // 7. Strip invisible zero-width unicode characters and padding
+  // \u200B (zero-width space), \u200C (zwnj), \u200D (zwj), \uFEFF (BOM), \u2007 (figure space), \u034F (combining grapheme joiner)
+  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ');
+
+  // 8. Collapse repeated whitespace and excessive blank lines
+  cleaned = cleaned.replace(/[ \t]+/g, ' ');
+  cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n');
+  cleaned = cleaned.trim();
+
+  // If text begins with "To view this email message, open it in a program that understands HTML", discard that banner
+  cleaned = cleaned.replace(/^To view this email message, open it in a program that understands HTML!?\s*/i, '');
+
+  return cleaned;
+}
+
+/**
+ * Recursively extracts both plain text and raw HTML from Gmail payload parts
+ */
+function extractBodyParts(payload) {
+  let plainText = '';
+  let htmlText = '';
+
+  function walk(part) {
+    if (!part) return;
+
+    if (part.mimeType === 'text/plain' && part.body && part.body.data) {
+      const decoded = decodeBase64Url(part.body.data);
+      if (decoded && !plainText) {
+        plainText = decoded;
+      }
+    } else if (part.mimeType === 'text/html' && part.body && part.body.data) {
+      const decoded = decodeBase64Url(part.body.data);
+      if (decoded && !htmlText) {
+        htmlText = decoded;
       }
     }
-    // Fallback to text/html
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/html' && part.body && part.body.data) {
-        const html = decodeBase64Url(part.body.data);
-        return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-    }
-    // Nested multipart
-    for (const part of payload.parts) {
-      if (part.parts) {
-        const nested = extractBody(part);
-        if (nested) return nested;
+
+    if (part.parts && Array.isArray(part.parts)) {
+      for (const subPart of part.parts) {
+        walk(subPart);
       }
     }
   }
-  return '';
+
+  // Check top-level payload first
+  if (payload?.body && payload.body.data) {
+    if (payload.mimeType === 'text/html') {
+      htmlText = decodeBase64Url(payload.body.data);
+    } else {
+      plainText = decodeBase64Url(payload.body.data);
+    }
+  }
+
+  walk(payload);
+
+  // If plainText is empty or is a stub ("To view this email message..."), prefer clean text from htmlText
+  const isStub = !plainText || 
+    plainText.trim().length < 25 || 
+    /^To view this email message, open it in a program that understands HTML!?\s*$/i.test(plainText.trim()) ||
+    /^(&nbsp;|&zwnj;|\s)+$/i.test(plainText.trim());
+
+  let finalText = '';
+  if (isStub && htmlText) {
+    finalText = cleanEmailText(htmlText);
+  } else if (plainText) {
+    finalText = cleanEmailText(plainText);
+    // If cleaning plainText left almost nothing but htmlText exists, fall back to cleaned HTML
+    if (finalText.length < 35 && htmlText) {
+      finalText = cleanEmailText(htmlText);
+    }
+  } else if (htmlText) {
+    finalText = cleanEmailText(htmlText);
+  }
+
+  return {
+    text: finalText || plainText || '',
+    html: htmlText || ''
+  };
 }
 
 /**
@@ -107,7 +231,7 @@ async function refreshGoogleAccessToken(account) {
  * Synchronizes real emails from Gmail for a connected EmailAccount
  */
 async function syncRealGmailEmails(account, options = {}) {
-  const maxResults = options.maxResults || 15;
+  const maxResults = options.maxResults || 50;
   let accessToken = account.accessToken;
 
   if (!accessToken) {
@@ -189,17 +313,22 @@ async function syncRealGmailEmails(account, options = {}) {
       const isUnread = (msgData.labelIds || []).includes('UNREAD');
       const isImportant = (msgData.labelIds || []).includes('IMPORTANT') || (msgData.labelIds || []).includes('STARRED');
 
-      const bodyText = extractBody(msgData.payload) || msgData.snippet || '';
-      const snippet = msgData.snippet || bodyText.substring(0, 160);
+      const { text: bodyText, html: htmlText } = extractBodyParts(msgData.payload);
+      const cleanSnippet = cleanEmailText(msgData.snippet) || (bodyText ? bodyText.substring(0, 160) : '');
 
       // Check if this threadId or message ID already exists
       const threadKey = msgData.threadId ? `gmail-${msgData.threadId}` : `gmail-${msgData.id}`;
       let existingEmail = await Email.findOne({ threadId: threadKey });
 
       if (existingEmail) {
-        // Update read status and snippet
+        // Update read status, preview, and cleaned content
         existingEmail.isUnread = isUnread;
         existingEmail.isImportant = isImportant;
+        if (cleanSnippet) existingEmail.preview = cleanSnippet;
+        if (existingEmail.messages && existingEmail.messages.length > 0) {
+          if (bodyText) existingEmail.messages[0].content = bodyText;
+          if (htmlText) existingEmail.messages[0].html = htmlText;
+        }
         await existingEmail.save();
         syncedEmails.push(existingEmail);
         continue;
@@ -214,7 +343,8 @@ async function syncRealGmailEmails(account, options = {}) {
           id: msgData.id,
           from: sender,
           to: [{ name: account.displayName || account.email, email: account.email }],
-          content: bodyText || snippet,
+          content: bodyText || cleanSnippet,
+          html: htmlText || '',
           timestamp: emailDate
         }],
         isUnread,
@@ -245,12 +375,13 @@ async function syncRealGmailEmails(account, options = {}) {
         sender,
         recipients: [{ name: account.displayName || account.email, email: account.email, type: 'to' }],
         subject,
-        preview: snippet,
+        preview: cleanSnippet,
         messages: [{
           id: msgData.id,
           from: sender,
           to: [{ name: account.displayName || account.email, email: account.email }],
-          content: bodyText || snippet,
+          content: bodyText || cleanSnippet,
+          html: htmlText || '',
           timestamp: emailDate
         }],
         classification: {
@@ -312,5 +443,6 @@ async function syncRealGmailEmails(account, options = {}) {
 
 module.exports = {
   syncRealGmailEmails,
-  refreshGoogleAccessToken
+  refreshGoogleAccessToken,
+  cleanEmailText
 };

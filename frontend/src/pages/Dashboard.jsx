@@ -11,22 +11,37 @@ import { CLASSIFICATION_CONFIG } from '../utils/constants';
 import { formatMeetingDate } from '../utils/helpers';
 import {
   BarChart3, Mail, Bot, User, Clock, Star, Calendar,
-  Lightbulb, AlertTriangle, TrendingUp, ArrowRight
+  Lightbulb, AlertTriangle, TrendingUp, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { selectedClient, emailCounts } = useApp();
+  const { selectedClient, emailCounts, fetchEmailCounts } = useApp();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [recentEmails, setRecentEmails] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, [selectedClient]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
+      await api.syncIntegrationProvider('gmail', clientId);
+      await fetchData();
+      if (fetchEmailCounts) fetchEmailCounts();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -92,10 +107,26 @@ export default function Dashboard() {
         {/* Left — Recent Conversations */}
         <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">Recent Conversations</h2>
-            <Link to="/emails" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1">
-              View All <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-slate-900">Recent Conversations</h2>
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                {stats?.totalEmails ?? recentEmails.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+                title="Sync up to 50 real emails from Gmail"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Inbox'}
+              </button>
+              <Link to="/emails" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1">
+                View All <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
           <div className="divide-y divide-slate-50">
             {recentEmails.slice(0, 8).map((email) => (
@@ -109,7 +140,16 @@ export default function Dashboard() {
               }} compact />
             ))}
             {recentEmails.length === 0 && (
-              <div className="p-8 text-center text-slate-400 text-sm">No recent conversations</div>
+              <div className="p-8 text-center">
+                <p className="text-slate-500 text-sm mb-3">No real emails synced yet</p>
+                <a
+                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Connect Gmail to Sync Real Emails
+                </a>
+              </div>
             )}
           </div>
         </div>

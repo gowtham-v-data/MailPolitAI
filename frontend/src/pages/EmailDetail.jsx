@@ -12,6 +12,73 @@ import {
   Copy, Send, RefreshCw, X, ChevronDown, Paperclip, Clock
 } from 'lucide-react';
 
+function formatEmailBody(content = '') {
+  if (!content) return '';
+  let str = String(content);
+
+  // Strip <style> and <script>
+  str = str.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ');
+  str = str.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ');
+
+  // Strip preheader spacer blocks
+  str = str.replace(/<[^>]+style\s*=\s*["'][^"']*(display\s*:\s*none|font-size\s*:\s*[01]px|max-height\s*:\s*0|opacity\s*:\s*0)[^"']*["'][^>]*>[\s\S]*?<\/[^>]+>/gi, ' ');
+
+  // Convert break tags
+  str = str.replace(/<br\s*\/?>/gi, '\n');
+  str = str.replace(/<\/p>/gi, '\n\n');
+  str = str.replace(/<\/div>/gi, '\n');
+
+  // Strip HTML tags if rendering in clean reader mode
+  str = str.replace(/<[^>]+>/g, ' ');
+
+  // Decode repetitive &nbsp;&zwnj; and zero-width spacer spam
+  str = str.replace(/(&nbsp;|&zwnj;|&zwj;|\u200B|\u200C|\u200D|\uFEFF|\u2007|\u034F|\s){4,}/gi, ' ');
+
+  // Replace common HTML entities
+  const map = {
+    '&nbsp;': ' ',
+    '&zwnj;': '',
+    '&zwj;': '',
+    '&shy;': '',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&#x27;': "'",
+    '&rsquo;': "'",
+    '&lsquo;': "'",
+    '&rdquo;': '"',
+    '&ldquo;': '"',
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&hellip;': '...'
+  };
+  for (const [k, v] of Object.entries(map)) {
+    str = str.replaceAll(new RegExp(k, 'gi'), v);
+  }
+
+  // Handle numeric entities
+  str = str.replace(/&#(\d+);/g, (_, d) => {
+    const code = parseInt(d, 10);
+    if (code === 8204 || code === 8205 || code === 8203 || code === 65279) return '';
+    return String.fromCharCode(code);
+  });
+
+  // Remove zero-width & invisible spaces
+  str = str.replace(/[\u200B-\u200D\uFEFF\u034F\u2007\u00A0]+/g, ' ');
+
+  // Collapse empty lines
+  str = str.replace(/[ \t]+/g, ' ');
+  str = str.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
+
+  // Strip stub banner if present
+  str = str.replace(/^To view this email message, open it in a program that understands HTML!?\s*/i, '');
+
+  return str;
+}
+
 export default function EmailDetail({ clientView = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -23,6 +90,7 @@ export default function EmailDetail({ clientView = false }) {
   const [showDraft, setShowDraft] = useState(false);
   const [tone, setTone] = useState('professional');
   const [classDropdown, setClassDropdown] = useState(false);
+  const [viewMode, setViewMode] = useState('reader'); // 'reader' | 'html'
 
   useEffect(() => {
     fetchEmail();
@@ -186,20 +254,56 @@ export default function EmailDetail({ clientView = false }) {
             {messages.map((msg, i) => {
               const fromName = msg.from?.name || msg.from?.email || 'Unknown';
               const color = stringToColor(fromName);
+              const hasHtml = Boolean(msg.html || (msg.content && /<[a-z][\s\S]*>/i.test(msg.content)));
+              const cleanContent = formatEmailBody(msg.content);
+
               return (
                 <div key={msg.id || i} className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: color }}>
-                      {getInitials(fromName)}
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: color }}>
+                        {getInitials(fromName)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{fromName}</p>
+                        <p className="text-xs text-slate-400 truncate">{msg.from?.email} · {formatFullDate(msg.timestamp)}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900">{fromName}</p>
-                      <p className="text-xs text-slate-400">{msg.from?.email} · {formatFullDate(msg.timestamp)}</p>
+                    {hasHtml && (
+                      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('reader')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${viewMode === 'reader' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
+                        >
+                          Clean Text
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('html')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${viewMode === 'html' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
+                        >
+                          Rich HTML
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {viewMode === 'html' && hasHtml ? (
+                    <div className="mt-2 rounded-lg border border-slate-100 overflow-hidden bg-white">
+                      <iframe
+                        srcDoc={msg.html || msg.content}
+                        className="w-full h-[600px] border-0"
+                        sandbox="allow-same-origin allow-popups"
+                        title="Formatted email content"
+                      />
                     </div>
-                  </div>
-                  <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-12">
-                    {msg.content}
-                  </div>
+                  ) : (
+                    <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed pl-1 sm:pl-12 font-normal">
+                      {cleanContent}
+                    </div>
+                  )}
+
                   {msg.attachments?.length > 0 && (
                     <div className="flex gap-2 mt-3 pl-12">
                       {msg.attachments.map((att, j) => (
@@ -270,7 +374,7 @@ export default function EmailDetail({ clientView = false }) {
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-1">Summary</p>
-                <p className="text-sm text-slate-700">{email.classification?.summary || 'No summary available'}</p>
+                <p className="text-sm text-slate-700">{formatEmailBody(email.classification?.summary) || 'No summary available'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-1.5">Classification</p>
@@ -287,7 +391,7 @@ export default function EmailDetail({ clientView = false }) {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-1">Reasoning</p>
-                <p className="text-sm text-slate-600 italic">{email.classification?.reason || 'N/A'}</p>
+                <p className="text-sm text-slate-600 italic">{formatEmailBody(email.classification?.reason) || 'N/A'}</p>
               </div>
               {email.classification?.suggestedAction && (
                 <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
