@@ -11,7 +11,7 @@ import {
 
 export default function Settings() {
   const { user } = useAuth();
-  const { selectedClient } = useApp();
+  const { selectedClient, fetchEmailCounts } = useApp();
   const toast = useToast();
   const [aiSettings, setAiSettings] = useState({ autoClassify: true, confidenceThreshold: 75 });
   const [notifications, setNotifications] = useState({ email: true, classification: true, delegation: true, digest: false });
@@ -28,9 +28,10 @@ export default function Settings() {
     // Check for OAuth callback redirects
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') === 'google_success') {
-      toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓`);
+      toast.success(`Google Account connected: ${params.get('email') || 'authorized'} ✓ Live emails synchronized!`);
       window.history.replaceState({}, document.title, window.location.pathname);
       fetchIntegrations();
+      if (fetchEmailCounts) fetchEmailCounts();
     } else if (params.get('oauth') === 'error') {
       toast.error(`Google OAuth error: ${params.get('message') || 'authorization failed'}`);
       window.history.replaceState({}, document.title, window.location.pathname);

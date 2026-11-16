@@ -42,6 +42,14 @@ const emailAccountSchema = new mongoose.Schema({
     type: Number,
     default: 15
   },
+  accessToken: {
+    type: String,
+    default: ''
+  },
+  refreshToken: {
+    type: String,
+    default: ''
+  },
   connectedAt: {
     type: Date,
     default: Date.now

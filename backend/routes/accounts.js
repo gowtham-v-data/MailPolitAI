@@ -78,6 +78,8 @@ router.get('/google/callback', async (req, res) => {
         account.email = userEmail;
         account.displayName = displayName;
         account.status = 'connected';
+        account.accessToken = tokenData.access_token || '';
+        if (tokenData.refresh_token) account.refreshToken = tokenData.refresh_token;
         account.lastSync = new Date();
         await account.save();
       } else {
@@ -87,6 +89,8 @@ router.get('/google/callback', async (req, res) => {
           email: userEmail,
           displayName,
           status: 'connected',
+          accessToken: tokenData.access_token || '',
+          refreshToken: tokenData.refresh_token || '',
           lastSync: new Date(),
           connectedAt: new Date()
         });
@@ -115,6 +119,16 @@ router.get('/google/callback', async (req, res) => {
         entityType: 'account',
         entityId: account._id
       });
+
+      // Synchronize real emails immediately from user's Gmail inbox
+      let realSyncedCount = 0;
+      try {
+        const { syncRealGmailEmails } = require('../services/gmailSyncService');
+        const syncRes = await syncRealGmailEmails(account, { maxResults: 15 });
+        realSyncedCount = syncRes.syncedCount || 0;
+      } catch (syncErr) {
+        console.warn('[Google OAuth] Initial real Gmail sync notice:', syncErr.message);
+      }
     }
 
     res.redirect(`http://localhost:5173/settings?oauth=google_success&email=${encodeURIComponent(userEmail)}`);

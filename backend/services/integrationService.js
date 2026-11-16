@@ -150,6 +150,26 @@ async function syncProvider(provider, clientId, user) {
     : null;
 
   if (provider === 'gmail') {
+    const gmailAccount = await EmailAccount.findOne({
+      ...(validClientId ? { clientId: validClientId } : {}),
+      provider: 'gmail'
+    });
+
+    if (gmailAccount && gmailAccount.accessToken) {
+      try {
+        const { syncRealGmailEmails } = require('./gmailSyncService');
+        const realSync = await syncRealGmailEmails(gmailAccount, { maxResults: 15 });
+        return {
+          provider: 'gmail',
+          status: 'synced',
+          syncedAt: syncTimestamp,
+          message: `Live Gmail API Sync complete: ${realSync.syncedCount} real email(s) synchronized from ${gmailAccount.email} & classified by Gemini AI.`
+        };
+      } catch (realErr) {
+        console.warn('[GmailSync] Live sync error, falling back:', realErr.message);
+      }
+    }
+
     await EmailAccount.updateMany(
       { ...(validClientId ? { clientId: validClientId } : {}), provider: 'gmail' },
       { lastSync: syncTimestamp, status: 'connected' }
