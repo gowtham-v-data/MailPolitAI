@@ -27,19 +27,20 @@ router.get('/google/auth', (req, res) => {
 
 // GET /api/accounts/google/callback - Receives authorization code from Google
 router.get('/google/callback', async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   try {
     const { code, state, error } = req.query;
     if (error) {
       if (state && state.startsWith('auth_')) {
-        return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(error)}`);
+        return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error)}`);
       }
-      return res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(error)}`);
+      return res.redirect(`${frontendUrl}/settings?oauth=error&message=${encodeURIComponent(error)}`);
     }
     if (!code) {
       if (state && state.startsWith('auth_')) {
-        return res.redirect('http://localhost:5173/login?error=No+authorization+code+provided');
+        return res.redirect(`${frontendUrl}/login?error=No+authorization+code+provided`);
       }
-      return res.redirect('http://localhost:5173/settings?oauth=error&message=No+code+provided');
+      return res.redirect(`${frontendUrl}/settings?oauth=error&message=No+code+provided`);
     }
 
     // Exchange code for access & refresh tokens
@@ -59,9 +60,9 @@ router.get('/google/callback', async (req, res) => {
     if (!tokenResponse.ok || !tokenData.access_token) {
       console.error('Failed to exchange code for tokens:', tokenData);
       if (state && state.startsWith('auth_')) {
-        return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(tokenData.error_description || 'Google authentication failed')}`);
+        return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(tokenData.error_description || 'Google authentication failed')}`);
       }
-      return res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(tokenData.error_description || 'Token exchange failed')}`);
+      return res.redirect(`${frontendUrl}/settings?oauth=error&message=${encodeURIComponent(tokenData.error_description || 'Token exchange failed')}`);
     }
 
     // Fetch user info from Google
@@ -154,7 +155,7 @@ router.get('/google/callback', async (req, res) => {
       }
 
       const targetPath = user.role === 'client' ? '/client' : '/';
-      const redirectUrl = `http://localhost:5173/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify({
+      const redirectUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify({
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -265,10 +266,10 @@ router.get('/google/callback', async (req, res) => {
       }
     }
 
-    res.redirect(`http://localhost:5173/settings?oauth=google_success&email=${encodeURIComponent(userEmail)}&clientId=${targetClientId}`);
+    res.redirect(`${frontendUrl}/settings?oauth=google_success&email=${encodeURIComponent(userEmail)}&clientId=${targetClientId}`);
   } catch (err) {
     console.error('OAuth callback error:', err);
-    res.redirect(`http://localhost:5173/settings?oauth=error&message=${encodeURIComponent(err.message)}`);
+    res.redirect(`${frontendUrl}/settings?oauth=error&message=${encodeURIComponent(err.message)}`);
   }
 });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getApiBaseUrl } from '../api';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function Login() {
@@ -113,7 +114,7 @@ export default function Login() {
 
           {/* Google Authentication Option */}
           <a
-            href="http://localhost:5000/api/auth/google?mode=login"
+            href={`${getApiBaseUrl()}/api/auth/google?mode=login`}
             className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-slate-200 hover:border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-2xs mb-4"
           >
             <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">

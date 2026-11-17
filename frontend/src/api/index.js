@@ -1,12 +1,16 @@
 import axios from 'axios';
 
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 const api = axios.create({
-  baseURL: '/api',
-  timeout: 12000,
+  baseURL: API_BASE_URL ? `${API_BASE_URL.replace(/\/+$/, '')}/api` : '/api',
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+export const getApiBaseUrl = () => (API_BASE_URL ? API_BASE_URL.replace(/\/+$/, '') : 'http://localhost:5000');
 
 // Request interceptor to attach auth token
 api.interceptors.request.use(

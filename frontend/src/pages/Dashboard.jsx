@@ -143,7 +143,7 @@ export default function Dashboard() {
               <div className="p-8 text-center">
                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">No real emails synced yet</p>
                 <a
-                  href={`http://localhost:5000/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
+                  href={`${api.getApiBaseUrl()}/api/accounts/google/auth?clientId=${selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''}`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors"
                 >
                   <Mail className="w-3.5 h-3.5" />

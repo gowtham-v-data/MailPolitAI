@@ -351,7 +351,7 @@ export default function Settings() {
                 </span>
                 <div className="flex items-center gap-1.5">
                   <a
-                    href={`http://localhost:5000/api/accounts/google/auth?clientId=${
+                    href={`${api.getApiBaseUrl()}/api/accounts/google/auth?clientId=${
                       selectedClient?._id && selectedClient?._id !== 'all' ? selectedClient._id : ''
                     }`}
                     className="px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg flex items-center gap-1 transition-colors"
