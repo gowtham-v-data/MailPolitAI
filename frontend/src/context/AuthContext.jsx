@@ -35,6 +35,19 @@ export function AuthProvider({ children }) {
     validateToken();
   }, []);
 
+  const getErrorMessage = (err, defaultMsg) => {
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
+      return 'The backend server is waking up from sleep (Render free tier). Please wait a few seconds and try again.';
+    }
+    if (err.message === 'Network Error') {
+      return 'Unable to reach the server. The backend may be booting up; please wait 15 seconds and try again.';
+    }
+    return err.message || defaultMsg;
+  };
+
   const login = useCallback(async (email, password) => {
     try {
       const response = await api.login({ email, password });
@@ -46,7 +59,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       return {
         success: false,
-        error: err.response?.data?.message || 'Login failed. Please try again.',
+        error: getErrorMessage(err, 'Login failed. Please try again.'),
       };
     }
   }, []);
@@ -62,7 +75,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       return {
         success: false,
-        error: err.response?.data?.message || 'Registration failed. Please try again.',
+        error: getErrorMessage(err, 'Registration failed. Please try again.'),
       };
     }
   }, []);
