@@ -4,10 +4,23 @@ const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
+// Helper to dynamically resolve Google OAuth redirect URI with Render & localhost support
+function getGoogleRedirectUri(req) {
+  if (process.env.GOOGLE_REDIRECT_URI && !process.env.GOOGLE_REDIRECT_URI.includes('mailpilot-backend.onrender.com')) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  if (process.env.RENDER_EXTERNAL_URL) {
+    return `${process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '')}/api/accounts/google/callback`;
+  }
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  const host = req.get('host');
+  return `${proto}://${host}/api/accounts/google/callback`;
+}
+
 // GET /api/auth/google - Initiate Google Sign-In / Sign-Up
 router.get('/google', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/accounts/google/callback';
+  const redirectUri = getGoogleRedirectUri(req);
   const mode = req.query.mode || 'login';
   const role = req.query.role || 'assistant';
   const state = `auth_${mode}_${role}`;
