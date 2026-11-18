@@ -6,10 +6,9 @@ export default function Modal({
   onClose,
   title,
   subtitle,
-  icon: Icon,
   children,
+  footer,
   size = 'md',
-  noPadding = false,
 }) {
   useEffect(() => {
     if (isOpen) {
@@ -42,53 +41,53 @@ export default function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-150">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Dialog Card */}
       <div
-        className={`relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden z-10 my-auto`}
+        className={`relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full ${sizeClasses[size]} overflow-hidden z-10 my-auto`}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-start justify-between px-6 py-4.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="flex items-center gap-3.5 min-w-0 pr-4">
-              {Icon && (
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-xs">
-                  <Icon className="w-5 h-5" />
-                </div>
+          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between bg-white dark:bg-slate-900">
+            <div className="pr-4">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white leading-6">
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {subtitle}
+                </p>
               )}
-              <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-snug truncate">
-                  {title}
-                </h2>
-                {subtitle && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                    {subtitle}
-                  </p>
-                )}
-              </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              aria-label="Close modal"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors -mr-1.5 -mt-1 focus:outline-none"
+              aria-label="Close dialog"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         )}
 
-        {/* Content */}
-        <div className={`overflow-y-auto flex-1 ${noPadding ? '' : 'p-6'}`}>
+        {/* Content Body */}
+        <div className="p-6 bg-white dark:bg-slate-900 overflow-y-auto max-h-[calc(90vh-140px)]">
           {children}
         </div>
+
+        {/* Pinned Bottom Footer Bar */}
+        {footer && (
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
