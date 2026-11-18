@@ -1,4 +1,4 @@
-# MailPilot AI ✈️
+# MailPilot AI 
 
 > AI-Powered Email Management Dashboard for Personal Assistants
 
