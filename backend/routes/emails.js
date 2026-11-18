@@ -56,12 +56,16 @@ router.get('/', async (req, res) => {
     if (isArchived !== undefined) filter.isArchived = isArchived === 'true';
     else filter.isArchived = false;
     if (category) filter.category = category;
-    if (search) {
+    if (search && search.trim()) {
+      const cleanSearch = search.trim();
+      const escapedSearch = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c);
       const searchCriteria = [
-        { subject: { $regex: search, $options: 'i' } },
-        { 'sender.name': { $regex: search, $options: 'i' } },
-        { 'sender.email': { $regex: search, $options: 'i' } },
-        { preview: { $regex: search, $options: 'i' } }
+        { subject: { $regex: escapedSearch, $options: 'i' } },
+        { 'sender.name': { $regex: escapedSearch, $options: 'i' } },
+        { 'sender.email': { $regex: escapedSearch, $options: 'i' } },
+        { preview: { $regex: escapedSearch, $options: 'i' } },
+        { 'classification.summary': { $regex: escapedSearch, $options: 'i' } },
+        { 'messages.content': { $regex: escapedSearch, $options: 'i' } }
       ];
       if (filter.$or) {
         filter.$and = [{ $or: filter.$or }, { $or: searchCriteria }];

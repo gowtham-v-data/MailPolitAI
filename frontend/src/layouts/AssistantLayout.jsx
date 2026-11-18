@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { NAV_ITEMS } from '../utils/constants';
@@ -47,9 +47,39 @@ function SidebarLink({ item }) {
 export default function AssistantLayout() {
   const { sidebarOpen, toggleSidebar, closeSidebar, notifications, theme, setTheme } = useApp();
   const { user, switchToClientView } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [navSearch, setNavSearch] = useState(searchParams.get('search') || '');
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadNotifs = notifications.filter((n) => !n.read).length;
+
+  // Sync nav search bar whenever search parameter changes or page changes
+  useEffect(() => {
+    if (location.pathname.startsWith('/emails')) {
+      setNavSearch(searchParams.get('search') || '');
+    } else {
+      setNavSearch('');
+    }
+  }, [location.pathname, searchParams]);
+
+  const handleSearchSubmit = (query) => {
+    const trimmed = (query || '').trim();
+    if (trimmed) {
+      navigate(`/emails?search=${encodeURIComponent(trimmed)}`);
+    } else if (location.pathname.startsWith('/emails')) {
+      navigate('/emails');
+    }
+  };
+
+  const handleSearchChange = (val) => {
+    setNavSearch(val);
+    if (location.pathname.startsWith('/emails')) {
+      const trimmed = val.trim();
+      navigate(trimmed ? `/emails?search=${encodeURIComponent(trimmed)}` : '/emails', { replace: true });
+    }
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -110,7 +140,12 @@ export default function AssistantLayout() {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex-1 max-w-xl">
-            <SearchBar placeholder="Search emails, clients..." />
+            <SearchBar
+              value={navSearch}
+              onChange={handleSearchChange}
+              onSubmit={handleSearchSubmit}
+              placeholder="Search emails, contacts, or summaries... (Press Enter or ⌘K)"
+            />
           </div>
           <div className="hidden md:block w-56">
             <ClientSelector compact />

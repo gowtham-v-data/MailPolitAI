@@ -9,7 +9,7 @@ import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import { CLASSIFICATION_CONFIG } from '../utils/constants';
-import { Mail, SlidersHorizontal, ChevronLeft, ChevronRight, ExternalLink, Sparkles, RefreshCw } from 'lucide-react';
+import { Mail, SlidersHorizontal, ChevronLeft, ChevronRight, ExternalLink, Sparkles, RefreshCw, X } from 'lucide-react';
 
 const TITLES = {
   ASSISTANT_TO_REPLY: 'Assistant to Reply',
@@ -42,6 +42,27 @@ export default function EmailInbox() {
 
   const title = classification ? TITLES[classification] || classification : 'All Emails';
 
+  // Keep search state in sync when URL search parameter changes
+  useEffect(() => {
+    const urlQuery = searchParams.get('search') || '';
+    if (urlQuery !== search) {
+      setSearch(urlQuery);
+    }
+  }, [searchParams]);
+
+  const handleSearchChange = (val) => {
+    setSearch(val);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val && val.trim()) {
+        next.set('search', val.trim());
+      } else {
+        next.delete('search');
+      }
+      return next;
+    }, { replace: true });
+  };
+
   const fetchEmails = useCallback(async () => {
     setLoading(true);
     try {
@@ -57,7 +78,7 @@ export default function EmailInbox() {
       if (filters.status) params.status = filters.status;
       if (filters.isUnread === 'true') params.isUnread = 'true';
       if (filters.isImportant === 'true') params.isImportant = 'true';
-      if (search) params.search = search;
+      if (search && search.trim()) params.search = search.trim();
 
       const res = await api.getEmails(params);
       setEmails(res.data?.emails || []);
@@ -100,10 +121,13 @@ export default function EmailInbox() {
   return (
     <div className="p-4 lg:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{total} email{total !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {total} {total === 1 ? 'email' : 'emails'}
+            {search && <span> matching "<strong className="text-slate-700 dark:text-slate-200">{search}</strong>"</span>}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -116,7 +140,7 @@ export default function EmailInbox() {
             {syncing ? 'Syncing...' : 'Sync Emails'}
           </button>
           <div className="w-56 sm:w-64">
-            <SearchBar value={search} onChange={setSearch} placeholder="Search emails..." />
+            <SearchBar value={search} onChange={handleSearchChange} placeholder="Search emails..." />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
@@ -130,6 +154,20 @@ export default function EmailInbox() {
           </select>
         </div>
       </div>
+
+      {/* Active Search Indicator Chip */}
+      {search && (
+        <div className="flex items-center gap-2 mb-4 p-2 px-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-lg w-fit text-xs text-indigo-800 dark:text-indigo-300">
+          <span>Search query: <strong>"{search}"</strong></span>
+          <button
+            onClick={() => handleSearchChange('')}
+            className="p-0.5 rounded hover:bg-indigo-200/50 dark:hover:bg-indigo-800/50 text-indigo-600 dark:text-indigo-300 ml-1 transition-colors"
+            title="Clear search"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       {showFilters && !classification && (
@@ -148,11 +186,23 @@ export default function EmailInbox() {
           <div className="py-20"><LoadingSpinner /></div>
         ) : emails.length === 0 ? (
           search || classification || Object.values(filters).some(v => v) ? (
-            <EmptyState
-              icon={Mail}
-              title="No emails found"
-              description={search ? 'Try adjusting your search or filters' : 'No emails match the current filters'}
-            />
+            <div className="py-16 px-6 text-center">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3 text-slate-400">
+                <Mail className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">No matching emails found</h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-4">
+                {search ? `No emails match the keyword "${search}". Try searching by subject, sender, or email content.` : 'No emails match the active filter criteria.'}
+              </p>
+              {search && (
+                <button
+                  onClick={() => handleSearchChange('')}
+                  className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
           ) : (
             <div className="py-16 px-6 text-center">
               <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
