@@ -8,7 +8,7 @@ const emailAccountSchema = new mongoose.Schema({
   },
   provider: {
     type: String,
-    enum: ['gmail', 'outlook'],
+    enum: ['gmail', 'outlook', 'custom'],
     required: [true, 'Provider is required']
   },
   email: {

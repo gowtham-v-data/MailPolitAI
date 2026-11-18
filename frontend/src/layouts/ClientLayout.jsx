@@ -19,11 +19,11 @@ export default function ClientLayout() {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
             <span className="font-medium text-white">Executive Client View</span>
-            <span className="text-slate-400 hidden sm:inline">— James Richardson (TechVision Inc)</span>
+            <span className="text-slate-400 hidden sm:inline">— {user?.name || 'Executive'} ({user?.email})</span>
           </div>
           <button
-            onClick={switchToAssistantView}
-            className="flex items-center gap-1.5 text-indigo-300 hover:text-white font-medium transition-colors"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-indigo-300 hover:text-white font-medium transition-colors cursor-pointer"
           >
             <Bot className="w-3.5 h-3.5" />
             Switch to Assistant Dashboard

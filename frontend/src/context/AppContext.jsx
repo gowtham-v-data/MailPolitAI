@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [selectedClient, setSelectedClient] = useState(null);
   const [clients, setClients] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -79,19 +79,25 @@ export function AppProvider({ children }) {
     try {
       const response = await api.getClients();
       const clientList = response.data.clients || response.data || [];
-      const allOption = { _id: 'all', name: 'All Clients', company: 'Combined Inbox', email: 'all@mailpilot.ai' };
+      const userEmail = user?.email?.toLowerCase();
+      
+      // Auto-select the logged-in user's personal client workspace first
+      const ownClient = userEmail ? clientList.find(c => c.email?.toLowerCase() === userEmail) : null;
+      const allOption = { _id: 'all', name: 'All Inboxes', company: 'Combined View', email: user?.email || 'all@mailpilot.ai' };
+      
       setClients([allOption, ...clientList]);
-      // Default to "All Clients" or James Richardson for maximum visibility
-      setSelectedClient((prev) => prev || allOption);
+      setSelectedClient((prev) => {
+        if (!prev || prev._id === 'all') {
+          return ownClient || clientList[0] || allOption;
+        }
+        return prev;
+      });
     } catch (err) {
-      // No mock/dummy data — show only real connected clients
-      const emptyList = [
-        { _id: 'all', name: 'All Clients', company: 'Combined Inbox', email: 'all@mailpilot.ai' },
-      ];
-      setClients(emptyList);
-      setSelectedClient((prev) => prev || emptyList[0]);
+      const allOption = { _id: 'all', name: 'All Inboxes', company: 'Combined View', email: user?.email || 'all@mailpilot.ai' };
+      setClients([allOption]);
+      setSelectedClient((prev) => prev || allOption);
     }
-  }, []);
+  }, [user]);
 
   // Fetch email counts
   useEffect(() => {

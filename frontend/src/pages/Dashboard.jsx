@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 import * as api from '../api';
 import StatCard from '../components/StatCard';
 import EmailCard from '../components/EmailCard';
@@ -18,6 +19,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 export default function Dashboard() {
   const { user } = useAuth();
   const { selectedClient, emailCounts, fetchEmailCounts } = useApp();
+  const toast = useToast();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [recentEmails, setRecentEmails] = useState([]);
@@ -33,11 +35,12 @@ export default function Dashboard() {
     setSyncing(true);
     try {
       const clientId = (selectedClient?._id && selectedClient?._id !== 'all') ? selectedClient._id : undefined;
-      await api.syncIntegrationProvider('gmail', clientId);
+      const res = await api.syncIntegrationProvider('gmail', clientId);
+      toast.success(res.data?.message || 'Inbox synchronized successfully');
       await fetchData();
       if (fetchEmailCounts) fetchEmailCounts();
     } catch (err) {
-      console.error(err);
+      toast.error(err.response?.data?.message || 'Sync failed. Please check your connection.');
     } finally {
       setSyncing(false);
     }

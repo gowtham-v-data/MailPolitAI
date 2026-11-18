@@ -36,6 +36,52 @@ router.get('/google', (req, res) => {
   res.redirect(authUrl);
 });
 
+// Helper to ensure every registered/logged-in user has their own Client & EmailAccount
+async function ensureUserWorkspace(user) {
+  try {
+    const Client = require('../models/Client');
+    const EmailAccount = require('../models/EmailAccount');
+    const cleanEmail = user.email.toLowerCase().trim();
+
+    let client = await Client.findOne({ email: cleanEmail });
+    if (!client) {
+      const companyDomain = cleanEmail.includes('@') ? cleanEmail.split('@')[1].split('.')[0].toUpperCase() : 'Personal';
+      client = await Client.create({
+        name: user.name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        company: `${companyDomain} Workspace`,
+        phone: '',
+        assistantId: user._id,
+        status: 'active',
+        connectedAccounts: [{
+          provider: cleanEmail.includes('gmail') ? 'gmail' : (cleanEmail.includes('outlook') || cleanEmail.includes('hotmail')) ? 'outlook' : 'custom',
+          email: cleanEmail,
+          status: 'connected',
+          lastSync: new Date(),
+          connectedAt: new Date()
+        }]
+      });
+    }
+
+    let account = await EmailAccount.findOne({ clientId: client._id, email: cleanEmail });
+    if (!account) {
+      await EmailAccount.create({
+        clientId: client._id,
+        provider: cleanEmail.includes('gmail') ? 'gmail' : (cleanEmail.includes('outlook') || cleanEmail.includes('hotmail')) ? 'outlook' : 'custom',
+        email: cleanEmail,
+        displayName: user.name || cleanEmail.split('@')[0],
+        status: 'connected',
+        lastSync: new Date(),
+        connectedAt: new Date()
+      });
+    }
+    return client;
+  } catch (err) {
+    console.warn('[ensureUserWorkspace] Note:', err.message);
+    return null;
+  }
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -43,11 +89,14 @@ router.post('/register', async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email and password are required' });
     }
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
-    const user = await User.create({ name, email: email.toLowerCase(), password, role: role || 'assistant' });
+    const user = await User.create({ name, email: cleanEmail, password, role: role || 'assistant' });
+    await ensureUserWorkspace(user);
+
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'mailpilot-secret-key-change-in-production', { expiresIn: '7d' });
     res.status(201).json({ success: true, token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
   } catch (err) {
@@ -62,7 +111,8 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -70,6 +120,8 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+    await ensureUserWorkspace(user);
+
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'mailpilot-secret-key-change-in-production', { expiresIn: '7d' });
     res.json({ success: true, token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
   } catch (err) {

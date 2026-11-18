@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const connectedAccountSchema = new mongoose.Schema({
   provider: {
     type: String,
-    enum: ['gmail', 'outlook'],
+    enum: ['gmail', 'outlook', 'custom'],
     required: true
   },
   email: {

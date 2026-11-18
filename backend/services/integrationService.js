@@ -150,12 +150,25 @@ async function syncProvider(provider, clientId, user) {
     : null;
 
   if (provider === 'gmail') {
-    const gmailAccount = await EmailAccount.findOne({
-      ...(validClientId ? { clientId: validClientId } : {}),
-      provider: 'gmail'
-    });
+    let gmailAccount = null;
+    if (validClientId) {
+      gmailAccount = await EmailAccount.findOne({ clientId: validClientId, provider: 'gmail' });
+    }
+    if (!gmailAccount && user?.email) {
+      gmailAccount = await EmailAccount.findOne({ email: user.email.toLowerCase(), provider: 'gmail' });
+    }
+    if (!gmailAccount && user?._id) {
+      const Client = require('../models/Client');
+      const client = await Client.findOne({ assistantId: user._id });
+      if (client) {
+        gmailAccount = await EmailAccount.findOne({ clientId: client._id, provider: 'gmail' });
+      }
+    }
+    if (!gmailAccount) {
+      gmailAccount = await EmailAccount.findOne({ provider: 'gmail' });
+    }
 
-    if (gmailAccount && gmailAccount.accessToken) {
+    if (gmailAccount && (gmailAccount.accessToken || gmailAccount.refreshToken)) {
       try {
         const { syncRealGmailEmails } = require('./gmailSyncService');
         const realSync = await syncRealGmailEmails(gmailAccount, { maxResults: 50 });
@@ -166,7 +179,7 @@ async function syncProvider(provider, clientId, user) {
           message: `Live Gmail API Sync complete: ${realSync.syncedCount} real email(s) synchronized from ${gmailAccount.email} & classified by Gemini AI.`
         };
       } catch (realErr) {
-        console.warn('[GmailSync] Live sync error, falling back:', realErr.message);
+        console.warn('[GmailSync] Live sync notice:', realErr.message);
       }
     }
 

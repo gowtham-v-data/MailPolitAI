@@ -21,45 +21,23 @@ export default function ClientDashboard() {
     setLoading(true);
     setError(null);
     try {
-      let token = localStorage.getItem('mailpilot_token');
-      // If no token or token is invalid, ensure we have an active session for the client view
-      if (!token) {
-        try {
-          const loginRes = await api.login({ email: 'james@techvision.com', password: 'password123' });
-          if (loginRes.data?.token) {
-            token = loginRes.data.token;
-            localStorage.setItem('mailpilot_token', token);
-          }
-        } catch (loginErr) {
-          console.warn('Auto-login as client failed, attempting assistant fallback:', loginErr);
-          const fallbackRes = await api.login({ email: 'sarah@mailpilot.ai', password: 'password123' });
-          if (fallbackRes.data?.token) {
-            token = fallbackRes.data.token;
-            localStorage.setItem('mailpilot_token', token);
-          }
-        }
-      }
-
-      // Fetch emails classified as CLIENT_TO_REPLY
-      const res = await api.getEmails({ classification: 'CLIENT_TO_REPLY', status: 'active', limit: 50 });
+      // Fetch all emails requiring client decision or delegated to client
+      const [res, statsRes] = await Promise.all([
+        api.getEmails({ clientView: 'true', limit: 50 }),
+        api.getEmailStats().catch(() => ({ data: {} }))
+      ]);
       setEmails(res.data?.emails || []);
+      if (statsRes.data) {
+        setHandledCount(statsRes.data.noReplyNeeded || 0);
+        setDelegatedCount(statsRes.data.assistantToReply || 0);
+      }
     } catch (err) {
       console.error('Failed to fetch client emails:', err);
-      // If unauthorized, attempt one re-login and retry
       if (err.response?.status === 401) {
-        try {
-          localStorage.removeItem('mailpilot_token');
-          const loginRes = await api.login({ email: 'james@techvision.com', password: 'password123' });
-          localStorage.setItem('mailpilot_token', loginRes.data.token);
-          const retryRes = await api.getEmails({ classification: 'CLIENT_TO_REPLY', status: 'active', limit: 50 });
-          setEmails(retryRes.data?.emails || []);
-          setLoading(false);
-          return;
-        } catch (retryErr) {
-          console.error('Retry failed:', retryErr);
-        }
+        setError('Session expired. Please sign in again.');
+      } else {
+        setError('Could not load priority items. Please click Try Again.');
       }
-      setError('Could not load emails. Please check your connection or sign in again.');
       setEmails([]);
     } finally {
       setLoading(false);
@@ -86,7 +64,7 @@ export default function ClientDashboard() {
       await api.delegateEmail(emailId);
       setEmails((prev) => prev.filter((e) => e._id !== emailId));
       setDelegatedCount((prev) => prev + 1);
-      toast.success('Delegated to your assistant Sarah ✓');
+      toast.success('Delegated to assistant ✓');
     } catch {
       toast.error('Delegation failed. Please try again.');
     }

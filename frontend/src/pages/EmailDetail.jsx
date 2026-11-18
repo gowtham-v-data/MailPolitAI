@@ -177,7 +177,7 @@ export default function EmailDetail({ clientView = false }) {
   const handleDelegate = async () => {
     try {
       await api.delegateEmail(id);
-      toast.success('Delegated to assistant');
+      toast.success(clientView ? 'Delegated to assistant' : 'Delegated to executive client');
       navigate(clientView ? '/client' : -1);
     } catch { toast.error('Delegation failed'); }
   };
@@ -235,9 +235,13 @@ export default function EmailDetail({ clientView = false }) {
               <button onClick={handleComplete} className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Complete
               </button>
-              {clientView && (
-                <button onClick={handleDelegate} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 inline-flex items-center gap-1.5">
+              {clientView ? (
+                <button onClick={handleDelegate} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 inline-flex items-center gap-1.5 transition-colors">
                   Delegate to Assistant
+                </button>
+              ) : (
+                <button onClick={handleDelegate} className="px-3 py-1.5 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 inline-flex items-center gap-1.5 transition-colors">
+                  Delegate to Client
                 </button>
               )}
 
